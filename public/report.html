@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Report a smell — Leslieville Stink Reporter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="/styles/main.css">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-mark">LSR</span>
+                <span>Leslieville Stink Reporter</span>
+            </a>
+            <div class="nav-links">
+                <a class="nav-link" href="/">Dashboard</a>
+                <a class="nav-link active" href="/report">Report</a>
+                <a class="nav-link" href="/subscribe">Alerts</a>
+                <a class="nav-link" href="/about">About</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="form-page" id="formMain">
+        <div class="eyebrow">/ report</div>
+        <h1>What did you smell?</h1>
+        <p class="lede">Three taps, twenty seconds. Anonymous unless you opt in.</p>
+
+        <form id="reportForm" novalidate>
+            <div class="form-section">
+                <div class="form-section-label">01 · How bad</div>
+                <div class="severity-grid" role="radiogroup" aria-label="Severity">
+                    <button type="button" class="sev-btn" data-severity="1" aria-pressed="false">
+                        <div class="sev-btn-icon" data-raccoon-mood="1"></div>
+                        <div class="sev-btn-label">Faint</div>
+                        <div class="sev-btn-desc">a whisper</div>
+                    </button>
+                    <button type="button" class="sev-btn" data-severity="3" aria-pressed="false">
+                        <div class="sev-btn-icon" data-raccoon-mood="3"></div>
+                        <div class="sev-btn-label">Strong</div>
+                        <div class="sev-btn-desc">unmistakable</div>
+                    </button>
+                    <button type="button" class="sev-btn" data-severity="5" aria-pressed="false">
+                        <div class="sev-btn-icon" data-raccoon-mood="5"></div>
+                        <div class="sev-btn-label">Overwhelming</div>
+                        <div class="sev-btn-desc">close the windows</div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-label">02 · What kind</div>
+                <div class="chip-row" role="radiogroup" aria-label="Odour type">
+                    <label class="chip"><input type="radio" name="odourType" value="rotten-eggs" required>rotten eggs</label>
+                    <label class="chip"><input type="radio" name="odourType" value="sewage">sewage / manure</label>
+                    <label class="chip"><input type="radio" name="odourType" value="chemical">chemical</label>
+                    <label class="chip"><input type="radio" name="odourType" value="other">other</label>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-label">03 · Where</div>
+                <div class="fsa-row">
+                    <span>
+                        <span class="fsa-code" id="fsaDisplay">M4M</span>
+                        <span class="fsa-sub" id="fsaSub"> · pick your area, or auto-detect from device</span>
+                    </span>
+                    <select id="fsa" name="fsa" required aria-label="Postal area">
+                        <option value="M4M">M4M — Leslieville</option>
+                        <option value="M4L">M4L — Riverside / Leslieville east</option>
+                        <option value="M4J">M4J — East Danforth</option>
+                        <option value="M4K">M4K — Danforth Village</option>
+                        <option value="M4E">M4E — Beaches</option>
+                        <option value="M4N">M4N — Lawrence Park</option>
+                        <option value="M4W">M4W — Rosedale</option>
+                        <option value="M5A">M5A — Regent Park / St. Lawrence</option>
+                        <option value="M4X">M4X — Cabbagetown</option>
+                        <option value="M4Y">M4Y — Church-Wellesley</option>
+                        <option value="M4S">M4S — Davisville</option>
+                        <option value="M5N">M5N — Forest Hill North</option>
+                    </select>
+                </div>
+                <div style="margin-top:8px"><button type="button" id="autodetectBtn" class="btn-link">Use my location</button></div>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="shareLocation">
+                    Share precise location (within ~100m, jittered) — helps map clusters
+                </label>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-label">04 · Optional note</div>
+                <textarea id="description" name="description" maxlength="280" rows="3" placeholder="What did it smell like? When did it start?"></textarea>
+                <div class="char-count"><span id="charCount">0</span>/280</div>
+                <p class="hint">Don't include your address, phone, or email — descriptions with personal info get held for review.</p>
+            </div>
+
+            <div class="turnstile-row">
+                <div id="turnstileSlot" style="flex-shrink:0"></div>
+                <div class="label" id="turnstileLabel">Verify you're a human, not a raccoon.</div>
+                <span class="badge">Cloudflare Turnstile</span>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn btn-primary btn-block" disabled>
+                <span id="submitRaccoon" style="display:inline-flex;width:28px;height:28px"></span>
+                Send the stench report
+            </button>
+            <p id="formStatus" class="form-status" role="status"></p>
+            <p class="hint" style="text-align:center">We don't store your IP. Reports are public; notes are reviewed before display.</p>
+        </form>
+    </main>
+
+    <div id="lakeWave"></div>
+
+    <footer class="foot">
+        <div><a href="/">Map</a> · <a href="/about">About</a> · <a href="/subscribe">Get alerts</a></div>
+        <div class="meta">Run by neighbours · not affiliated with the City of Toronto</div>
+    </footer>
+
+    <script src="/js/state.js"></script>
+    <script src="/js/raccoon.js"></script>
+    <script src="/js/lake-wave.js"></script>
+    <script src="/js/report.js"></script>
+</body>
+</html>

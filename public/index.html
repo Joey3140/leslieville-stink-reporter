@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Leslieville Stink Reporter — track the Ashbridges Bay odour, live</title>
+    <meta name="description" content="Community-run odour reporting portal for Toronto's east end. Live heatmap by FSA, recent reports, and email alerts when your area crosses a complaint threshold.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-mark">LSR</span>
+                <span>Leslieville Stink Reporter</span>
+            </a>
+            <div class="nav-links">
+                <a class="nav-link active" href="/">Dashboard</a>
+                <a class="nav-link" href="/report">Report</a>
+                <a class="nav-link" href="/subscribe">Alerts</a>
+                <a class="nav-link" href="/about">About</a>
+                <span class="live-pill" style="margin-left: 8px;"><span class="live-dot"></span>live</span>
+            </div>
+        </div>
+    </nav>
+
+    <div id="ticker" class="ticker" aria-label="Live report ticker" hidden>
+        <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+
+    <main class="app">
+        <section class="hero">
+            <div>
+                <div class="raccoon-card" id="raccoonCard" aria-live="polite">
+                    <!-- raccoon SVG injected by raccoon.js -->
+                </div>
+                <div class="raccoon-stamp">
+                    <span>Mood meter</span>
+                    <span class="live"><span class="live-dot" style="background:#FFB347"></span>&nbsp;live</span>
+                </div>
+            </div>
+            <div>
+                <div class="eyebrow" id="eyebrow">Today's Stench Report</div>
+                <h1 id="heroHeadline">Smelled something? <em>Tell the city what 311 won't capture.</em></h1>
+                <p>A community-run odour reporting portal for the east end. Reports are public, anonymous, and aggregated weekly for Coun. Paula Fletcher's office.</p>
+                <div class="hero-actions">
+                    <a class="btn btn-primary" href="/report">Report a smell <span aria-hidden="true">→</span></a>
+                    <a class="btn btn-secondary" href="/subscribe">Get alerts</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats" aria-label="Report counts">
+            <div>
+                <div class="stat-label">Reports today</div>
+                <div class="stat-num" id="statToday">—</div>
+            </div>
+            <div>
+                <div class="stat-label">This week</div>
+                <div class="stat-num" id="statWeek">—</div>
+            </div>
+            <div>
+                <div class="stat-label">This year</div>
+                <div class="stat-num" id="statYear">—</div>
+            </div>
+            <div>
+                <div class="stat-label">Unique reporters (7d)</div>
+                <div class="stat-num" id="statReporters">—</div>
+            </div>
+        </section>
+
+        <section class="map-feed">
+            <div>
+                <div class="map-header">
+                    <h2 class="section-h">The map</h2>
+                    <div class="window-toggle" role="tablist" aria-label="Time window">
+                        <button data-window="24h" class="active" role="tab" aria-selected="true">24h</button>
+                        <button data-window="7d"  role="tab">7d</button>
+                        <button data-window="30d" role="tab">30d</button>
+                        <button data-window="all" role="tab">all</button>
+                    </div>
+                </div>
+                <div class="map-frame">
+                    <div id="map" role="region" aria-label="East Toronto FSAs by report volume"></div>
+                    <div class="legend" id="mapLegend" aria-hidden="true"></div>
+                    <div class="fsa-tooltip" id="fsaTooltip" role="status" aria-live="polite"></div>
+                </div>
+            </div>
+            <div>
+                <h2 class="section-h">Recent reports</h2>
+                <div class="feed-frame" id="feedFrame">
+                    <div class="feed-empty">Loading…</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="lakeWave"><!-- injected by lake-wave.js --></div>
+
+    <footer class="foot">
+        <div>
+            <a href="/about">About</a> · <a href="mailto:councillor_fletcher@toronto.ca">Coun. Paula Fletcher's office</a> · <a href="https://www.toronto.ca/home/311-toronto-at-your-service/">City of Toronto 311</a> · <a href="/about#privacy">Privacy</a>
+        </div>
+        <div class="meta">Run by neighbours · not affiliated with the City of Toronto</div>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin></script>
+    <script src="/js/state.js"></script>
+    <script src="/js/raccoon.js"></script>
+    <script src="/js/lake-wave.js"></script>
+    <script src="/js/map.js"></script>
+</body>
+</html>

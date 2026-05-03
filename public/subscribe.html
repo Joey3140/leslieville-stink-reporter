@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Get alerts — Leslieville Stink Reporter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="/styles/main.css">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-mark">LSR</span>
+                <span>Leslieville Stink Reporter</span>
+            </a>
+            <div class="nav-links">
+                <a class="nav-link" href="/">Dashboard</a>
+                <a class="nav-link" href="/report">Report</a>
+                <a class="nav-link active" href="/subscribe">Alerts</a>
+                <a class="nav-link" href="/about">About</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="form-page" id="formMain">
+        <div class="eyebrow">/ subscribe</div>
+        <h1>We'll email you when your area gets a <em style="font-style:italic">critical mass</em> of complaints.</h1>
+        <p class="lede">Like a real-time stench alert. No daily digests, no weather reports — only when the data crosses the threshold you set.</p>
+
+        <form id="subscribeForm" novalidate>
+            <div class="form-section">
+                <div class="form-section-label">Email</div>
+                <input type="email" id="email" name="email" required maxlength="254" placeholder="you@somewhere.ca" autocomplete="email">
+                <p class="hint">We need to send mail, so we keep your address. One-click unsubscribe in every email; we never share it.</p>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-label">Watch these FSAs</div>
+                <div class="fsa-chip-grid" role="group" aria-label="FSA selection">
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4M" checked>M4M<span class="fsa-chip-name">Leslieville</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4L" checked>M4L<span class="fsa-chip-name">Riverside</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4J">M4J<span class="fsa-chip-name">East Danforth</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4K">M4K<span class="fsa-chip-name">Danforth Village</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4E">M4E<span class="fsa-chip-name">Beaches</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M5A">M5A<span class="fsa-chip-name">Regent Park</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4X">M4X<span class="fsa-chip-name">Cabbagetown</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4Y">M4Y<span class="fsa-chip-name">Church-Wellesley</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4N">M4N<span class="fsa-chip-name">Lawrence Park</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4S">M4S<span class="fsa-chip-name">Davisville</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M4W">M4W<span class="fsa-chip-name">Rosedale</span></label>
+                    <label class="fsa-chip"><input type="checkbox" name="fsa" value="M5N">M5N<span class="fsa-chip-name">Forest Hill N</span></label>
+                </div>
+            </div>
+
+            <div class="form-section severity-slider">
+                <div class="form-section-label">Alert me at severity <span id="thresholdReadout">3+</span></div>
+                <input type="range" id="threshold" min="1" max="5" step="2" value="3">
+                <div class="ladder">
+                    <span>1 · faint</span>
+                    <span>3 · strong</span>
+                    <span>5 · critical</span>
+                </div>
+            </div>
+
+            <div class="turnstile-row">
+                <div id="turnstileSlot" style="flex-shrink:0"></div>
+                <div class="label" id="turnstileLabel">Verify you're a human, not a raccoon.</div>
+                <span class="badge">Cloudflare Turnstile</span>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn btn-primary btn-block">Send me the confirmation email</button>
+            <p id="formStatus" class="form-status" role="status"></p>
+            <p class="hint" style="text-align:center">After you click, check your inbox for a confirmation link. Without confirming, we never email you.</p>
+        </form>
+    </main>
+
+    <div id="lakeWave"></div>
+
+    <footer class="foot">
+        <div><a href="/">Map</a> · <a href="/about">About</a> · <a href="/report">Report</a></div>
+        <div class="meta">Run by neighbours · not affiliated with the City of Toronto</div>
+    </footer>
+
+    <script src="/js/state.js"></script>
+    <script src="/js/raccoon.js"></script>
+    <script src="/js/lake-wave.js"></script>
+    <script src="/js/subscribe.js"></script>
+</body>
+</html>

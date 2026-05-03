@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>About — Leslieville Stink Reporter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a class="brand" href="/">
+                <span class="brand-mark">LSR</span>
+                <span>Leslieville Stink Reporter</span>
+            </a>
+            <div class="nav-links">
+                <a class="nav-link" href="/">Dashboard</a>
+                <a class="nav-link" href="/report">Report</a>
+                <a class="nav-link" href="/subscribe">Alerts</a>
+                <a class="nav-link active" href="/about">About</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="prose">
+        <div class="eyebrow">/ about</div>
+        <h1>Why a stench tracker? Because the city's not counting.</h1>
+
+        <p class="lede">The Ashbridges Bay Wastewater Treatment Plant has served Toronto since 1910. It treats roughly half the city's sewage. For years, on the wrong wind, the east end has known about it before the wastewater even leaves the headworks.</p>
+
+        <figure class="pull-quote">
+            <p class="pull-quote-text">"Drop the verbatim Toronto Star quote about the Leslieville stench here — pulled large, italic serif, attribution under."</p>
+            <figcaption class="pull-quote-cite">[editor: drop real Toronto Star quote here · author · date]</figcaption>
+        </figure>
+
+        <h2>How the data is collected</h2>
+        <p>Reports are submitted by neighbours through this site. We don't run sensors. We're not a regulator. We're a public counter — when 40 people in M4M report rotten eggs in the same hour, that's a number the plant operators and the councillor's office can be asked about.</p>
+
+        <h2 id="privacy">How the data is protected</h2>
+        <p>We don't store IP addresses (only an HMAC hash for rate limiting, auto-deleted after 30 days). We don't ask for your name. Precise location is opt-in and jittered ~100m before storage. Notes are reviewed before they go live so the feed stays useful and not weird.</p>
+        <ul>
+            <li>No login, no account, no name collected.</li>
+            <li>Rate limit: 10 reports per hour per IP. Cloudflare Turnstile verifies you're human.</li>
+            <li>Public stats show <em>report count</em> AND <em>unique reporter count</em> — so a single person filing 50 reports doesn't distort the picture.</li>
+            <li>Aggregated daily counts per FSA are kept indefinitely as a public record.</li>
+        </ul>
+
+        <h2>Who's behind this</h2>
+        <p>A handful of east-end residents, no funding, no affiliation with the City of Toronto or Toronto Water. We forward an aggregate weekly summary to <a href="mailto:councillor_fletcher@toronto.ca">Coun. Paula Fletcher's office (Ward 14, Toronto–Danforth)</a> every Monday morning. They have not asked us to do this. We do it anyway.</p>
+
+        <h2>Also worth doing</h2>
+        <p>This site is unofficial. Reports here are <strong>not</strong> automatically forwarded to the city. If you want a service request on file, please <a href="https://www.toronto.ca/home/311-toronto-at-your-service/">file with 311</a> as well.</p>
+
+        <div class="cta-card">
+            <div class="raccoon-mini" id="aboutRaccoon"></div>
+            <div class="cta-card-text">
+                <div class="cta-card-h">Smelled something today?</div>
+                <div class="cta-card-sub">Twenty seconds. The map needs you.</div>
+                <a href="/report" class="btn btn-primary">Report a smell <span aria-hidden="true">→</span></a>
+            </div>
+        </div>
+    </main>
+
+    <div id="lakeWave"></div>
+
+    <footer class="foot">
+        <div><a href="/">Map</a> · <a href="/report">Report</a> · <a href="/subscribe">Get alerts</a></div>
+        <div class="meta">Run by neighbours · not affiliated with the City of Toronto</div>
+    </footer>
+
+    <script src="/js/raccoon.js"></script>
+    <script src="/js/lake-wave.js"></script>
+    <script>
+        (function() {
+            window.LSV.renderRaccoon(document.getElementById('aboutRaccoon'), 2);
+            window.LSV.renderLakeWave(document.getElementById('lakeWave'), 2);
+        })();
+    </script>
+</body>
+</html>

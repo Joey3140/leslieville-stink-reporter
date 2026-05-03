@@ -17,11 +17,41 @@ process.on('uncaughtException', (err) => {
     process.exit(1);
 });
 
+// Lenient parse: tolerates trailing whitespace, newlines, or stray characters that
+// commonly appear when pasting a long JSON blob into a hosting provider's env-var UI.
+// Walks the string once, returns the first balanced top-level object.
+function parseServiceAccountJson(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return null;
+    try { return JSON.parse(s); } catch (_e) { /* fall through */ }
+    let depth = 0, start = -1, inStr = false, esc = false;
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (inStr) {
+            if (esc) { esc = false; }
+            else if (c === '\\') { esc = true; }
+            else if (c === '"') { inStr = false; }
+            continue;
+        }
+        if (c === '"') { inStr = true; continue; }
+        if (c === '{') { if (start === -1) start = i; depth++; }
+        else if (c === '}') {
+            depth--;
+            if (depth === 0 && start !== -1) {
+                const slice = s.slice(start, i + 1);
+                log.warn({ originalLen: s.length, parsedLen: slice.length }, 'FIREBASE_SERVICE_ACCOUNT had trailing content — used first valid JSON object');
+                return JSON.parse(slice);
+            }
+        }
+    }
+    throw new Error('FIREBASE_SERVICE_ACCOUNT did not contain a valid JSON object');
+}
+
 if (!admin.apps.length) {
     try {
         let credential;
         if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            const serviceAccount = parseServiceAccountJson(process.env.FIREBASE_SERVICE_ACCOUNT);
             credential = admin.credential.cert(serviceAccount);
             log.info('Using Firebase service account from environment');
         } else {

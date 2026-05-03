@@ -179,7 +179,7 @@
                 <div style="display:inline-block; width:180px; height:180px; margin-bottom:24px" id="successRaccoon"></div>
                 <h1 style="font-size:44px; margin: 0 0 12px">Stench logged.</h1>
                 <p class="lede" style="max-width:480px; margin: 0 auto 28px">
-                    Filed for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. The raccoon nodded gravely. Reports for your area are aggregated nightly and forwarded to the councillor's office every Monday.
+                    Filed for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. The raccoon nodded gravely. Your report is now part of the live public count — anyone (including Coun. Paula Fletcher's office) can see it on the map.
                 </p>
                 <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap">
                     <a href="/" class="btn btn-primary">See the map</a>

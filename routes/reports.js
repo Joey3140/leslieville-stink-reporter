@@ -49,7 +49,6 @@ router.post('/',
 
         const ip = getClientIp(req);
         const ipHash = hmacIp(ip);
-        const userAgent = (req.headers['user-agent'] || '').slice(0, 200);
         const now = new Date();
 
         // If precise location given, derive the FSA server-side and require it match an allowed area.
@@ -94,6 +93,9 @@ router.post('/',
         // After 30d the entire report is auto-deleted (drops ipHash, userAgent, description).
         const expiresAt = new Date(now.getTime() + REPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
+        // We deliberately do NOT store userAgent — it's never read by any endpoint
+        // and would add fingerprinting risk for no benefit. ipHash is enough for
+        // rate-limiting; clientId is enough for dedup + unique-reporter counts.
         const report = {
             createdAt: now,
             expiresAt,
@@ -102,7 +104,6 @@ router.post('/',
             odourType: data.odourType,
             ipHash,
             clientId: data.clientId,
-            userAgent,
             status,
         };
         if (data.description) report.description = data.description;

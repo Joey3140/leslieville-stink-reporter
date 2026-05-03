@@ -39,20 +39,43 @@
         <h2>How the data is collected</h2>
         <p>Reports are submitted by neighbours through this site. We don't run sensors. We're not a regulator. We're a public counter — when 40 people in M4M report rotten eggs in the same hour, that's a number the plant operators and the councillor's office can be asked about.</p>
 
-        <h2 id="privacy">How the data is protected</h2>
-        <p>We don't store IP addresses (only an HMAC hash for rate limiting, auto-deleted after 30 days). We don't ask for your name. Precise location is opt-in and jittered ~100m before storage. Notes are reviewed before they go live so the feed stays useful and not weird.</p>
+        <h2 id="privacy">Privacy promise — what we do and don't do</h2>
+        <p>This is a community project. We collect the absolute minimum needed to count odour reports and rate-limit spam. Everything below is enforced in code and you can verify it in our <a href="https://github.com/Joey3140/leslieville-stink-reporter">open-source repository</a>.</p>
+
+        <h3 style="font-family:var(--serif); font-size:18px; font-weight:600; margin:24px 0 6px">What we never collect</h3>
         <ul>
-            <li>No login, no account, no name collected.</li>
-            <li>Rate limit: 10 reports per hour per IP. Cloudflare Turnstile verifies you're human.</li>
-            <li>Public stats show <em>report count</em> AND <em>unique reporter count</em> — so a single person filing 50 reports doesn't distort the picture.</li>
-            <li>Aggregated daily counts per FSA are kept indefinitely as a public record.</li>
+            <li>No name, no account, no login.</li>
+            <li>No analytics or third-party trackers (no Google Analytics, no Meta pixel, no Mixpanel — none of it).</li>
+            <li>No raw IP address. We compute a one-way HMAC hash with a server-side rotating secret and store only the hash, used solely for rate-limiting. The original IP can't be recovered from it.</li>
+            <li>No precise location unless you explicitly opt in on the report form.</li>
+        </ul>
+
+        <h3 style="font-family:var(--serif); font-size:18px; font-weight:600; margin:24px 0 6px">What we do collect, and for how long</h3>
+        <ul>
+            <li><strong>Each report</strong> stores: postal area (FSA), severity (1/3/5), odour type, optional 280-char description, optional jittered location (~100m offset, deterministic per-day so volume doesn't reveal an address), the IP hash (above), and a random ID kept in your browser's localStorage so we can count unique reporters. <strong>Auto-deleted from our database after 30 days</strong> via Firestore TTL.</li>
+            <li><strong>Aggregated daily counts per FSA</strong> are kept indefinitely as a public record. They contain no individual reporter info.</li>
+            <li><strong>If you subscribe to alerts</strong>, your email is stored so we can send you mail. One-click unsubscribe in every email; no login required.</li>
+        </ul>
+
+        <h3 style="font-family:var(--serif); font-size:18px; font-weight:600; margin:24px 0 6px">Who sees the data</h3>
+        <ul>
+            <li><strong>Everyone.</strong> All counts and reports are visible on the public dashboard the moment they're submitted. There is no private dataset; we don't sell or share data; we don't auto-email the councillor's office or anyone else.</li>
+            <li>Coun. Paula Fletcher's office (Ward 14, Toronto–Danforth) and any other interested party can read the live counts directly from this site at any time.</li>
+            <li>Description text is scanned for personal info (email/phone/address patterns) before going public. If a description is flagged, the whole report is held in a moderation queue until manually cleared.</li>
+        </ul>
+
+        <h3 style="font-family:var(--serif); font-size:18px; font-weight:600; margin:24px 0 6px">Anti-abuse</h3>
+        <ul>
+            <li>10 reports/hour/IP rate limit. Cloudflare Turnstile verifies you're human (no Google reCAPTCHA — Turnstile doesn't track users across the web).</li>
+            <li>Public stats show both <em>report count</em> and <em>unique reporter count</em> — so a single person filing 50 reports doesn't distort the picture.</li>
+            <li>Same browser submitting twice in 30 minutes is silently de-duplicated so spam loops don't inflate counts.</li>
         </ul>
 
         <h2>Who's behind this</h2>
-        <p>A handful of east-end residents, no funding, no affiliation with the City of Toronto or Toronto Water. We forward an aggregate weekly summary to <a href="mailto:councillor_fletcher@toronto.ca">Coun. Paula Fletcher's office (Ward 14, Toronto–Danforth)</a> every Monday morning. They have not asked us to do this. We do it anyway.</p>
+        <p>A handful of east-end residents, no funding, no affiliation with the City of Toronto or Toronto Water. The site is open source and runs on Firebase + Vercel. The councillor's office hasn't asked us to do this — but they (and anyone else) can read live counts directly from <a href="/">this dashboard</a> any time.</p>
 
         <h2>Also worth doing</h2>
-        <p>This site is unofficial. Reports here are <strong>not</strong> automatically forwarded to the city. If you want a service request on file, please <a href="https://www.toronto.ca/home/311-toronto-at-your-service/">file with 311</a> as well.</p>
+        <p>This site is unofficial. Reports here are <strong>not</strong> automatically forwarded to the City. If you want a service request on file, please <a href="https://www.toronto.ca/home/311-toronto-at-your-service/">file with 311</a> as well.</p>
 
         <div class="cta-card">
             <div class="raccoon-mini" id="aboutRaccoon"></div>

@@ -80,7 +80,8 @@ app.use(helmet({
             // 'unsafe-inline' kept for style-src because Leaflet writes inline styles on map tiles.
             'style-src': ["'self'", "'unsafe-inline'", 'https://unpkg.com', 'https://fonts.googleapis.com'],
             'img-src': ["'self'", 'data:', 'https://*.tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com'],
-            'connect-src': ["'self'", 'https://challenges.cloudflare.com'],
+            // unpkg.com allowed for Leaflet sourcemap fetches; no real connect traffic.
+            'connect-src': ["'self'", 'https://challenges.cloudflare.com', 'https://unpkg.com'],
             'frame-src': ["'self'", 'https://challenges.cloudflare.com'],
             'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
         },
@@ -105,23 +106,6 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// TEMPORARY diagnostic — confirms which critical env vars Vercel's runtime sees.
-// Returns presence (boolean) and length only, never the value. Remove after first
-// successful smoke test against production.
-app.get('/api/diag/env', (req, res) => {
-    const keys = ['FIREBASE_SERVICE_ACCOUNT', 'FIRESTORE_DATABASE_ID', 'TURNSTILE_SITE_KEY',
-        'TURNSTILE_SECRET_KEY', 'RESEND_API_KEY', 'IP_HASH_SECRET', 'CRON_SECRET',
-        'PUBLIC_BASE_URL', 'NODE_ENV'];
-    const out = {};
-    keys.forEach((k) => {
-        const v = process.env[k];
-        out[k] = { present: typeof v === 'string' && v.length > 0, length: v ? v.length : 0 };
-    });
-    // Special: surface the actual FIRESTORE_DATABASE_ID value (it's not a secret — just a name)
-    out.FIRESTORE_DATABASE_ID_value = process.env.FIRESTORE_DATABASE_ID || null;
-    res.setHeader('Cache-Control', 'no-store');
-    res.json(out);
-});
 
 const reportsRoutes = require('./routes/reports');
 app.use('/api/reports', reportsRoutes);

@@ -30,11 +30,10 @@
                 <path d="M 141 116 Q 139 124 142 130 Q 145 124 143 116 Z" fill="#7BB6D6" opacity="0.85" />`;
         }
         if (mood === 1) {
+            // Sleepy/content eyes — just the closed-eye curves, no hooded-eyelid rects.
             out += `
                 <path d="M 96 108 Q 104 112 112 108"  stroke="${EYE}" stroke-width="2.5" fill="none" stroke-linecap="round" />
-                <path d="M 128 108 Q 136 112 144 108" stroke="${EYE}" stroke-width="2.5" fill="none" stroke-linecap="round" />
-                <rect x="96"  y="100" width="16" height="8" fill="${FUR_DK}" />
-                <rect x="128" y="100" width="16" height="8" fill="${FUR_DK}" />`;
+                <path d="M 128 108 Q 136 112 144 108" stroke="${EYE}" stroke-width="2.5" fill="none" stroke-linecap="round" />`;
         }
         return out;
     }

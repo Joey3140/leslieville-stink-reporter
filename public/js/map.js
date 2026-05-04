@@ -351,6 +351,42 @@
             </div>`;
     }
 
+    // ── Mood label + smelly-areas readout ─────────────────────────────────
+    // Surface the raccoon's mood as plain words ("FAINT", "STRONG", …) so the
+    // status is legible at a glance, and list the FSAs driving today's signal.
+    const MOOD_WORDS = { 1: 'All clear', 2: 'Faint', 3: 'Noticeable', 4: 'Strong', 5: 'Overwhelming' };
+
+    function updateMoodLabel(mood) {
+        const el = document.getElementById('moodLabel');
+        if (el) el.textContent = MOOD_WORDS[mood] || 'Mood meter';
+    }
+
+    function updateMoodAreas(counts) {
+        const el = document.getElementById('moodAreas');
+        if (!el) return;
+        const ranked = Object.entries(counts || {})
+            .filter(([, n]) => n > 0)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3);
+        if (!ranked.length) {
+            el.innerHTML = 'No smelly areas in the last 24h.';
+            return;
+        }
+        const parts = ranked.map(([fsa, n]) => `<strong>${escapeHtml(fsa)}</strong> (${n})`);
+        el.innerHTML = `Smelly now · ${parts.join('<span class="area-sep">·</span>')}`;
+    }
+
+    // Pulls the 24h heatmap counts to drive the mood-areas readout. Independent
+    // of the active map window so the readout always reflects "today".
+    async function refreshMoodAreas() {
+        try {
+            const { counts } = await getJson('/api/reports/heatmap?window=24h');
+            updateMoodAreas(counts);
+        } catch (err) {
+            console.error('mood areas failed', err);
+        }
+    }
+
     // ── Stats + raccoon mood ───────────────────────────────────────────────
     async function refreshStats() {
         try {
@@ -375,6 +411,7 @@
             else mood = 5;
             renderRaccoon(document.getElementById('raccoonCard'), mood);
             updateHeadline(positiveToday, clearToday, mood);
+            updateMoodLabel(mood);
             renderLakeWave(document.getElementById('lakeWave'), mood);
 
             // Eyebrow date
@@ -384,6 +421,7 @@
         } catch (err) {
             console.error('stats failed', err);
             renderRaccoon(document.getElementById('raccoonCard'), 1);
+            updateMoodLabel(1);
             renderLakeWave(document.getElementById('lakeWave'), 1);
         }
     }
@@ -543,6 +581,7 @@
             refreshDots(),
             refreshFeed(),
             refreshStats(),
+            refreshMoodAreas(),
             refreshTicker(),
             refreshWeather(),
         ]);
@@ -554,6 +593,7 @@
                 refreshDots(),
                 refreshFeed(),
                 refreshStats(),
+                refreshMoodAreas(),
                 refreshTicker(),
             ]);
         }, 60_000);

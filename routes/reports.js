@@ -194,7 +194,7 @@ router.get('/heatmap',
                 const positive = (d.count || 0) - clearCount;
                 buckets[d.fsa] = (buckets[d.fsa] || 0) + Math.max(0, positive);
             });
-            res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+            res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=5, stale-while-revalidate=15');
             res.json({ window, generatedAt: new Date().toISOString(), counts: buckets });
         } catch (err) {
             log.error({ err }, 'heatmap query failed');
@@ -226,7 +226,7 @@ router.get('/recent',
                     intersection: d.intersection,
                 };
             });
-            res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
+            res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=5, stale-while-revalidate=15');
             res.json({ items });
         } catch (err) {
             log.error({ err }, 'recent query failed');
@@ -303,7 +303,7 @@ router.get('/stats', asyncHandler(async (req, res) => {
             if (d.date && d.date >= startOfDayKey) clearCheckInsToday += c0;
         });
 
-        res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+        res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=5, stale-while-revalidate=15');
         res.json({
             today: todaySnap.data().count,
             thisWeek: weekSnap.data().count,

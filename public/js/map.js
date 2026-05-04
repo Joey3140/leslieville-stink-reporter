@@ -150,26 +150,35 @@
     }
 
     function renderFeedItem(r) {
-        const sev = Number(r.severity) || 1;
+        // 0 is a valid severity ("all clear" check-in) — keep it instead of falling back to 1.
+        const sev = Number.isFinite(Number(r.severity)) ? Number(r.severity) : 1;
         const sevClass = `sev-${sev}`;
         const sevLabel = SEV_LABEL[sev] || 'Strong';
+        const isClear = sev === 0;
         const odour = escapeHtml(TYPE_LABEL[r.odourType] || r.odourType || '');
         const note = r.description ? `<span style="opacity:0.85">"${escapeHtml(r.description)}"</span>` : '';
         const intersection = r.intersection
             ? `<span class="feed-intersection">· ${escapeHtml(r.intersection)}</span>`
             : '';
+        // Clear check-ins read as data, not a complaint — drop the "· N" suffix and odour tag.
+        const badge = isClear
+            ? `<span class="sev-badge sev-0"><span class="dot"></span>${sevLabel}</span>`
+            : `<span class="sev-badge ${sevClass}"><span class="dot"></span>${sevLabel} · ${sev}</span>`;
+        const body = isClear
+            ? `<span class="odour-tag odour-tag-clear">no smell reported</span>`
+            : `<span class="odour-tag">${odour}</span>${note}`;
         return `
             <div class="feed-item">
                 <div class="feed-item-row">
                     <div class="feed-item-meta">
                         <span class="feed-fsa">${escapeHtml(r.fsa)}</span>
                         ${intersection}
-                        <span class="sev-badge ${sevClass}"><span class="dot"></span>${sevLabel} · ${sev}</span>
+                        ${badge}
                     </div>
                     <span class="feed-time">${escapeHtml(formatTimeAgo(r.createdAt))}</span>
                 </div>
                 <div class="feed-note">
-                    <span class="odour-tag">${odour}</span>${note}
+                    ${body}
                 </div>
             </div>`;
     }
@@ -182,18 +191,22 @@
             document.getElementById('statWeek').textContent = (s.thisWeek ?? 0).toLocaleString('en-CA');
             document.getElementById('statYear').textContent = (s.thisYear ?? 0).toLocaleString('en-CA');
             document.getElementById('statReporters').textContent = (s.uniqueReportersThisWeek ?? 0).toLocaleString('en-CA');
+            const statClear = document.getElementById('statClear');
+            if (statClear) statClear.textContent = (s.clearCheckInsThisWeek ?? 0).toLocaleString('en-CA');
 
-            // Raccoon mood from a rough average proxy: severity scales with today's count.
-            // We don't get avg severity from /stats yet, so derive a soft mood from volume alone.
+            // s.today counts ALL submissions including all-clear check-ins; the odour signal
+            // is today minus clearToday. Mood + headline use the positive count.
             const today = s.today || 0;
+            const clearToday = s.clearCheckInsToday || 0;
+            const positiveToday = Math.max(0, today - clearToday);
             let mood;
-            if (today === 0) mood = 1;
-            else if (today <= 3) mood = 2;
-            else if (today <= 10) mood = 3;
-            else if (today <= 30) mood = 4;
+            if (positiveToday === 0) mood = 1;
+            else if (positiveToday <= 3) mood = 2;
+            else if (positiveToday <= 10) mood = 3;
+            else if (positiveToday <= 30) mood = 4;
             else mood = 5;
             renderRaccoon(document.getElementById('raccoonCard'), mood);
-            updateHeadline(today, mood);
+            updateHeadline(positiveToday, clearToday, mood);
             renderLakeWave(document.getElementById('lakeWave'), mood);
 
             // Eyebrow date
@@ -207,14 +220,16 @@
         }
     }
 
-    function updateHeadline(today, mood) {
+    function updateHeadline(positiveToday, clearToday, mood) {
         // <em> elements are styled by the global Honest Ed's CSS rule
         // (yellow highlight pill, rotated). No inline overrides — let the CSS work.
         const h = document.getElementById('heroHeadline');
-        if (today === 0) {
+        if (positiveToday === 0 && clearToday > 0) {
+            h.innerHTML = `The raccoon is napping. <em>All clear.</em> ${clearToday} check-in${clearToday === 1 ? '' : 's'} today.`;
+        } else if (positiveToday === 0) {
             h.innerHTML = 'The raccoon is napping. <em>All clear.</em>';
         } else if (mood >= 4) {
-            h.innerHTML = `It's bad out there. <em>${today} report${today === 1 ? '' : 's'}</em> in the last 24 hours.`;
+            h.innerHTML = `It's bad out there. <em>${positiveToday} report${positiveToday === 1 ? '' : 's'}</em> in the last 24 hours.`;
         } else {
             h.innerHTML = "Smelled something? <em>Tell the city what 311 won't capture.</em>";
         }
@@ -239,20 +254,82 @@
     }
 
     function tickerItem(r) {
+        const sev = Number.isFinite(Number(r.severity)) ? Number(r.severity) : 1;
+        const odourLabel = sev === 0
+            ? 'all clear'
+            : escapeHtml(TYPE_LABEL[r.odourType] || r.odourType || '');
+        const sevLabel = sev === 0 ? '✓' : `sev ${sev}`;
         return `<span class="ticker-item">
             <span class="ticker-dot">●</span>
             <span>${escapeHtml(r.fsa)}</span>
             <span class="ticker-sep">·</span>
             <span>${escapeHtml(formatTimeAgo(r.createdAt))}</span>
             <span class="ticker-sep">·</span>
-            <span>${escapeHtml(TYPE_LABEL[r.odourType] || r.odourType || '')}</span>
+            <span>${odourLabel}</span>
             <span class="ticker-sep">·</span>
-            <span>sev ${Number(r.severity) || 1}</span>
+            <span>${sevLabel}</span>
         </span>`;
     }
 
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // ── Wind widget ────────────────────────────────────────────────────────
+    // Polls /api/weather/current. The server proxies OpenWeatherMap and edge-caches
+    // for 10 min; we poll every 5 min so most calls are cache hits.
+    const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    function oppositeCardinal(deg) {
+        if (!Number.isFinite(deg)) return 'S';
+        const normalized = (((deg + 180) % 360) + 360) % 360;
+        return CARDINALS[Math.round(normalized / 45) % 8];
+    }
+    function ensureWindWidget() {
+        let el = document.getElementById('windWidget');
+        if (el) return el;
+        const frame = document.querySelector('.map-frame');
+        if (!frame) return null;
+        el = document.createElement('div');
+        el.id = 'windWidget';
+        el.className = 'wind-widget';
+        el.setAttribute('aria-live', 'polite');
+        el.hidden = true;
+        frame.appendChild(el);
+        return el;
+    }
+    async function refreshWeather() {
+        const el = ensureWindWidget();
+        if (!el) return;
+        try {
+            const w = await getJson('/api/weather/current');
+            const speed = w.wind && Number.isFinite(w.wind.speedKmh) ? w.wind.speedKmh : null;
+            const dir = w.wind && Number.isFinite(w.wind.direction) ? w.wind.direction : null;
+            const cardinal = (w.wind && w.wind.cardinal) || (dir != null ? CARDINALS[Math.round((((dir % 360) + 360) % 360) / 45) % 8] : null);
+            if (speed == null || dir == null || !cardinal) {
+                el.hidden = true;
+                return;
+            }
+            // OWM returns "wind from" angle. The arrow points where the wind is going,
+            // so add 180°. For Leslieville: south wind (from south) = arrow points north,
+            // smell blows over the neighbourhood.
+            const arrowDeg = (dir + 180) % 360;
+            const goingTo = oppositeCardinal(dir);
+            const observedAt = w.observedAt ? new Date(w.observedAt) : null;
+            const ago = observedAt ? formatTimeAgo(observedAt.toISOString()) : '';
+            el.innerHTML = `
+                <svg class="wind-arrow" style="transform: rotate(${arrowDeg}deg)" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2 L18 14 L12 11 L6 14 Z" fill="currentColor" />
+                </svg>
+                <div class="wind-meta">
+                    <div class="wind-cardinal">${escapeHtml(cardinal)} · ${speed} km/h</div>
+                    <div class="wind-sub">observed ${escapeHtml(ago)}</div>
+                </div>`;
+            el.title = `Wind from ${cardinal}, blowing toward ${goingTo}. Source: OpenWeatherMap, observed ${ago}.`;
+            el.hidden = false;
+        } catch (err) {
+            // 503 (no key, upstream down) or network — hide silently.
+            el.hidden = true;
+        }
     }
 
     // Time-window toggle
@@ -283,6 +360,7 @@
             refreshFeed(),
             refreshStats(),
             refreshTicker(),
+            refreshWeather(),
         ]);
         setInterval(async () => {
             await Promise.all([
@@ -293,5 +371,8 @@
                 refreshTicker(),
             ]);
         }, 60_000);
+        // Weather refreshes on its own slower cadence (5 min) — no need to retrigger
+        // every minute; the server's edge cache is 10 min anyway.
+        setInterval(refreshWeather, 5 * 60_000);
     })();
 })();

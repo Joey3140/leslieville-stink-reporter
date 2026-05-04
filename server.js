@@ -116,6 +116,9 @@ app.use('/api/subscribers', subscribersRoutes);
 const alertsRoutes = require('./routes/alerts');
 app.use('/api/cron', alertsRoutes);
 
+const weatherRoutes = require('./routes/weather');
+app.use('/api/weather', weatherRoutes);
+
 app.use(express.static(path.join(__dirname, 'public'), {
     extensions: ['html'],
     maxAge: '1h',

@@ -55,8 +55,8 @@ window.LSV = (function () {
         return `${days}d ago`;
     }
 
-    const SEV_LABEL = { 1: 'Faint', 3: 'Strong', 5: 'Overwhelming' };
-    const SEV_EMOJI = { 1: '🦝', 3: '😖', 5: '🤢' };
+    const SEV_LABEL = { 0: 'All clear', 1: 'Faint', 3: 'Strong', 5: 'Overwhelming' };
+    const SEV_EMOJI = { 0: '✓', 1: '🦝', 3: '😖', 5: '🤢' };
     const TYPE_LABEL = {
         'rotten-eggs': 'rotten eggs',
         sewage: 'sewage',

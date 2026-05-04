@@ -137,12 +137,16 @@ router.post('/',
             await db.runTransaction(async (tx) => {
                 tx.set(reportRef, report);
                 if (status === 'active') {
+                    // IMPORTANT: nest sub-counters under maps. set({merge:true}) does NOT
+                    // expand dotted keys into nested paths (only update() does), so writing
+                    // `'bySeverity.0': increment(1)` would store a literal flat field name.
+                    // Heatmap/stats readers depend on `d.bySeverity['0']` resolving to a number.
                     tx.set(counterRef, {
                         fsa,
                         date: dayKey(now),
                         count: FieldValue.increment(1),
-                        [`bySeverity.${data.severity}`]: FieldValue.increment(1),
-                        [`byType.${data.odourType}`]: FieldValue.increment(1),
+                        bySeverity: { [String(data.severity)]: FieldValue.increment(1) },
+                        byType: { [data.odourType]: FieldValue.increment(1) },
                         updatedAt: now,
                     }, { merge: true });
                 }
@@ -172,11 +176,17 @@ router.get('/heatmap',
             const snap = await db.collection(COLLECTIONS.dailyCounts)
                 .where('date', '>=', cutoffKey)
                 .get();
+            // Heatmap polygons reflect *odour signal only* — exclude severity-0 ("all clear") check-ins
+            // so a flood of clears can never repaint a polygon from red to cool.
+            // Backwards-compat: legacy daily-counts may store the count as a flat 'bySeverity.0'
+            // field instead of a nested map (pre-v1.2 writer used dotted keys with set+merge).
             const buckets = {};
             snap.forEach((doc) => {
                 const d = doc.data();
                 if (!d.fsa) return;
-                buckets[d.fsa] = (buckets[d.fsa] || 0) + (d.count || 0);
+                const clearCount = (d.bySeverity && d.bySeverity['0']) || d['bySeverity.0'] || 0;
+                const positive = (d.count || 0) - clearCount;
+                buckets[d.fsa] = (buckets[d.fsa] || 0) + Math.max(0, positive);
             });
             res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
             res.json({ window, generatedAt: new Date().toISOString(), counts: buckets });
@@ -259,10 +269,16 @@ router.get('/stats', asyncHandler(async (req, res) => {
     const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
     try {
-        const [todaySnap, weekSnap, yearSnap] = await Promise.all([
+        const sevenDaysAgoKey = dayKey(sevenDaysAgo);
+        const startOfDayKey = dayKey(startOfDay);
+        const [todaySnap, weekSnap, yearSnap, dailyCountsSnap] = await Promise.all([
             db.collection(COLLECTIONS.reports).where('status', '==', 'active').where('createdAt', '>=', startOfDay).count().get(),
             db.collection(COLLECTIONS.reports).where('status', '==', 'active').where('createdAt', '>=', sevenDaysAgo).count().get(),
             db.collection(COLLECTIONS.reports).where('status', '==', 'active').where('createdAt', '>=', yearStart).count().get(),
+            // Read daily-counts for clear check-ins — avoids needing a new composite index
+            // on reports(status, severity, createdAt). Counter updates are transactional with
+            // the report write so day-of values match.
+            db.collection(COLLECTIONS.dailyCounts).where('date', '>=', sevenDaysAgoKey).get(),
         ]);
         const reportersSnap = await db.collection(COLLECTIONS.reports)
             .where('status', '==', 'active')
@@ -271,12 +287,24 @@ router.get('/stats', asyncHandler(async (req, res) => {
             .get();
         const uniqueReporters = new Set(reportersSnap.docs.map((d) => d.data().clientId)).size;
 
+        let clearCheckInsThisWeek = 0;
+        let clearCheckInsToday = 0;
+        dailyCountsSnap.forEach((doc) => {
+            const d = doc.data();
+            // Tolerate both nested map (post-v1.2) and legacy flat 'bySeverity.0' field.
+            const c0 = (d.bySeverity && d.bySeverity['0']) || d['bySeverity.0'] || 0;
+            clearCheckInsThisWeek += c0;
+            if (d.date && d.date >= startOfDayKey) clearCheckInsToday += c0;
+        });
+
         res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
         res.json({
             today: todaySnap.data().count,
             thisWeek: weekSnap.data().count,
             thisYear: yearSnap.data().count,
             uniqueReportersThisWeek: uniqueReporters,
+            clearCheckInsToday,
+            clearCheckInsThisWeek,
             generatedAt: new Date().toISOString(),
         });
     } catch (err) {
@@ -290,7 +318,7 @@ router.get('/meta', (req, res) => {
     res.json({
         odourTypes: ODOUR_TYPES,
         severities: SEVERITY_VALUES,
-        severityLabels: { 1: 'Faint', 3: 'Strong', 5: 'Overwhelming' },
+        severityLabels: { 0: 'All clear', 1: 'Faint', 3: 'Strong', 5: 'Overwhelming' },
     });
 });
 

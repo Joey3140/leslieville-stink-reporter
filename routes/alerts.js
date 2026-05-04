@@ -61,16 +61,20 @@ router.post('/alert-check', cronAuth, asyncHandler(async (req, res) => {
             .where('fsa', '==', fsa)
             .where('createdAt', '>=', oneHourAgo)
             .select('severity', 'odourType').get();
-        if (snap.size < THRESHOLD_REPORTS) continue;
+
+        // Exclude severity-0 ("all clear") check-ins from threshold + average so a flood
+        // of clears can't suppress a real alert (or fire a false one if the schema drifts).
+        const positiveDocs = snap.docs.filter((d) => ((d.data().severity || 0) > 0));
+        if (positiveDocs.length < THRESHOLD_REPORTS) continue;
 
         const odourCounts = {};
         let sevSum = 0;
-        snap.docs.forEach((d) => {
+        positiveDocs.forEach((d) => {
             const data = d.data();
             sevSum += data.severity || 0;
             odourCounts[data.odourType] = (odourCounts[data.odourType] || 0) + 1;
         });
-        const avgSev = sevSum / snap.size;
+        const avgSev = sevSum / positiveDocs.length;
         if (avgSev < THRESHOLD_SEVERITY_AVG) continue;
 
         // Cooldown check.
@@ -83,7 +87,7 @@ router.post('/alert-check', cronAuth, asyncHandler(async (req, res) => {
         }
 
         const topOdour = Object.entries(odourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'sewage';
-        triggered.push({ fsa, count: snap.size, avgSev, topOdour, stateRef });
+        triggered.push({ fsa, count: positiveDocs.length, avgSev, topOdour, stateRef });
     }
 
     if (triggered.length === 0) {

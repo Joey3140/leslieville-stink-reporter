@@ -96,8 +96,9 @@
             severity = Number(btn.dataset.severity);
             // Murk the lake wave to match severity.
             renderLakeWave(document.getElementById('lakeWave'), severity);
-            // Update submit-button raccoon to match.
-            renderRaccoon(document.getElementById('submitRaccoon'), severity);
+            // Update submit-button raccoon — sev=0 ("all clear") shows mood-1 (sleeping).
+            const submitMood = severity === 0 ? 1 : Math.max(1, Math.min(5, severity));
+            renderRaccoon(document.getElementById('submitRaccoon'), submitMood);
             updateSubmitState();
         });
     });
@@ -217,14 +218,17 @@
     function showSuccess(payload) {
         const fsa = fsaSelect.value || 'M4M';
         const time = new Date().toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
-        const sevForRaccoon = Math.min(5, (severity || 2) + 1);
+        const isClear = severity === 0;
+        const sevForRaccoon = isClear ? 1 : Math.min(5, (severity || 2) + 1);
+        const headline = isClear ? 'All-clear logged.' : 'Stench logged.';
+        const copy = isClear
+            ? `Thanks for the all-clear. Logged for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. Helps us track how long these events last.`
+            : `Filed for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. The raccoon nodded gravely. Your report is now part of the live public count — anyone (including Coun. Paula Fletcher's office) can see it on the map.`;
         formMain.innerHTML = `
             <div style="text-align:center; padding: 32px 0">
                 <div style="display:inline-block; width:180px; height:180px; margin-bottom:24px" id="successRaccoon"></div>
-                <h1 style="font-size:44px; margin: 0 0 12px">Stench logged.</h1>
-                <p class="lede" style="max-width:480px; margin: 0 auto 28px">
-                    Filed for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. The raccoon nodded gravely. Your report is now part of the live public count — anyone (including Coun. Paula Fletcher's office) can see it on the map.
-                </p>
+                <h1 style="font-size:44px; margin: 0 0 12px">${escapeHtml(headline)}</h1>
+                <p class="lede" style="max-width:480px; margin: 0 auto 28px">${copy}</p>
                 <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap">
                     <a href="/" class="btn btn-primary">See the map</a>
                     <a href="/report" class="btn btn-secondary">File another</a>

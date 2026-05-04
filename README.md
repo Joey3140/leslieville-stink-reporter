@@ -40,6 +40,10 @@ TURNSTILE_SECRET_KEY=
 RESEND_API_KEY=
 RESEND_FROM='Leslieville Stink Reporter <onboarding@resend.dev>'
 
+# OpenWeatherMap (optional — powers the wind widget on the map; widget hides if unset)
+# Free tier: 60 calls/min, 1M/month. Sign up at https://home.openweathermap.org/api_keys
+OPENWEATHERMAP_API_KEY=
+
 # App secrets — generate with: openssl rand -hex 32
 IP_HASH_SECRET=
 CRON_SECRET=
@@ -132,6 +136,7 @@ vercel env add FIREBASE_SERVICE_ACCOUNT
 vercel env add TURNSTILE_SITE_KEY
 vercel env add TURNSTILE_SECRET_KEY
 vercel env add RESEND_API_KEY
+vercel env add OPENWEATHERMAP_API_KEY    # optional — wind widget on the map
 vercel env add IP_HASH_SECRET            # openssl rand -hex 32
 vercel env add CRON_SECRET               # openssl rand -hex 32
 vercel env add PUBLIC_BASE_URL           # https://leslieville-stink-reporter.vercel.app

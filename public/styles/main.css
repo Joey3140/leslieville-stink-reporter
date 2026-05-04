@@ -219,7 +219,7 @@ section { padding: 32px 48px; }
     padding: 24px 48px;
     border-top: 1px solid var(--rule);
     border-bottom: 1px solid var(--rule);
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 28px;
 }
 .stat-label {
     font-family: var(--mono); font-size: 10px;
@@ -292,6 +292,47 @@ section { padding: 32px 48px; }
 .fsa-tooltip strong { font-family: var(--mono); font-size: 12px; font-weight: 600; }
 .fsa-tooltip .sub { margin-top: 4px; opacity: 0.7; }
 
+/* Wind widget — overlay top-right of the map. Hidden by default; shown only when
+   /api/weather/current succeeds (graceful degradation when OWM key is missing). */
+.wind-widget {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(250, 247, 242, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--ink-12);
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--ink);
+    font-family: var(--sans);
+    z-index: 500;
+    cursor: help;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    min-width: 132px;
+}
+.wind-arrow {
+    width: 22px; height: 22px;
+    color: var(--accent);
+    flex-shrink: 0;
+    transition: transform .4s ease;
+}
+.wind-meta { line-height: 1.2; }
+.wind-cardinal {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+}
+.wind-sub {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-50);
+    margin-top: 2px;
+}
+@media (max-width: 520px) {
+    .wind-widget { top: 12px; right: 12px; padding: 6px 10px; min-width: 110px; }
+    .wind-arrow { width: 18px; height: 18px; }
+    .wind-cardinal { font-size: 11px; }
+}
+
 /* Feed list */
 .feed-frame {
     border: 1px solid rgba(27, 27, 27, 0.1);
@@ -331,6 +372,11 @@ section { padding: 32px 48px; }
     font-size: 11px; margin-right: 8px;
     font-family: var(--sans);
 }
+.odour-tag-clear {
+    background: rgba(127, 168, 143, 0.15);
+    color: var(--sage);
+    font-style: italic;
+}
 .feed-note {
     font-family: var(--sans); font-size: 13px;
     color: rgba(27, 27, 27, 0.85);
@@ -345,7 +391,10 @@ section { padding: 32px 48px; }
     border: 1px solid;
 }
 .sev-badge .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
-.sev-1 { color: var(--sage);   background: rgba(127, 168, 143, 0.13); border-color: rgba(127, 168, 143, 0.33); }
+/* sev-0 = sage (positive/safe "all clear"). sev-1 was sage prior to v1.2 — moved
+   to a soft wheat tone since green-on-a-complaint badge was misleading. */
+.sev-0 { color: var(--sage);   background: rgba(127, 168, 143, 0.13); border-color: rgba(127, 168, 143, 0.33); }
+.sev-1 { color: #B68C2E;       background: rgba(229, 208, 138, 0.18); border-color: rgba(229, 208, 138, 0.45); }
 .sev-3 { color: var(--heat-3); background: rgba(229, 167, 86, 0.13);  border-color: rgba(229, 167, 86, 0.33); }
 .sev-5 { color: var(--accent); background: rgba(218, 41, 28, 0.13);   border-color: rgba(218, 41, 28, 0.33); }
 
@@ -369,7 +418,7 @@ section { padding: 32px 48px; }
 }
 
 /* Severity buttons (with raccoons) */
-.severity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.severity-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .sev-btn {
     padding: 16px; border-radius: var(--radius);
     border: 1px solid rgba(27, 27, 27, 0.15);
@@ -381,6 +430,11 @@ section { padding: 32px 48px; }
     border: 2px solid var(--ink);
     background: rgba(27, 27, 27, 0.04);
     padding: 15px;
+}
+/* "All clear" check-in: positive/safe → sage active border, not black. */
+.sev-btn-clear[aria-pressed="true"] {
+    border-color: var(--sage);
+    background: rgba(127, 168, 143, 0.08);
 }
 .sev-btn-icon { display: flex; justify-content: center; margin-bottom: 6px; }
 .sev-btn-icon svg { width: 84px; height: 84px; }
@@ -645,7 +699,8 @@ footer.foot {
     .map-feed { grid-template-columns: 1fr; padding: 20px; gap: 24px; }
     #map { height: 380px; }
     .form-page { padding: 28px 16px; }
-    .severity-grid { gap: 8px; }
+    /* 4 buttons → 2x2 on mobile so each still has room for the raccoon icon. */
+    .severity-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
     .sev-btn { padding: 12px 6px; }
     .sev-btn[aria-pressed="true"] { padding: 11px 5px; }
     .sev-btn-icon svg { width: 56px; height: 56px; }

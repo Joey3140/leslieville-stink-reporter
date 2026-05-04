@@ -43,14 +43,16 @@ const fsaCode = z.string().trim().toUpperCase().refine((v) => ALLOWED_FSAS.inclu
     message: `FSA must be one of ${ALLOWED_FSAS.join(', ')}`,
 });
 
-const SEVERITY_VALUES = [1, 3, 5];
+// 0 = "all clear" check-in (no smell). Excluded from heatmap counts and alert thresholds.
+const SEVERITY_VALUES = [0, 1, 3, 5];
+const POSITIVE_SEVERITY_VALUES = [1, 3, 5];
 const ODOUR_TYPES = ['rotten-eggs', 'sewage', 'manure', 'chemical', 'other'];
 const WINDOW_VALUES = ['24h', '7d', '30d', 'all'];
 
 const schemas = {
     submitReport: z.object({
         fsa: fsaCode,
-        severity: z.number().int().refine((v) => SEVERITY_VALUES.includes(v), { message: 'severity must be 1, 3, or 5' }),
+        severity: z.number().int().refine((v) => SEVERITY_VALUES.includes(v), { message: 'severity must be 0, 1, 3, or 5' }),
         odourType: z.enum(ODOUR_TYPES),
         description: z.string().trim().max(280, 'description must be 280 characters or fewer').optional(),
         intersection: z.string().refine((v) => isAllowedIntersection(v), {
@@ -68,7 +70,7 @@ const schemas = {
     subscribe: z.object({
         email: z.string().trim().email().max(254),
         fsas: z.array(fsaCode).min(1).max(12),
-        thresholdSeverity: z.number().int().refine((v) => SEVERITY_VALUES.includes(v)),
+        thresholdSeverity: z.number().int().refine((v) => POSITIVE_SEVERITY_VALUES.includes(v), { message: 'thresholdSeverity must be 1, 3, or 5' }),
         turnstileToken: z.string().min(1).max(2048),
     }),
 
@@ -89,4 +91,4 @@ const schemas = {
     }),
 };
 
-module.exports = { validate, validateQuery, schemas, SEVERITY_VALUES, ODOUR_TYPES, WINDOW_VALUES };
+module.exports = { validate, validateQuery, schemas, SEVERITY_VALUES, POSITIVE_SEVERITY_VALUES, ODOUR_TYPES, WINDOW_VALUES };

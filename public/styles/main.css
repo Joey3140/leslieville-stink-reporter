@@ -830,12 +830,15 @@ footer.foot {
 @media (max-width: 920px) {
     .nav-inner { padding: 10px 16px; gap: 8px; }
     .nav-link { padding: 6px 8px; font-size: 13px; }
-    .nav-link.live-pill-wrap { display: none; }
     .brand { font-size: 17px; }
     section { padding-left: 20px; padding-right: 20px; }
     .hero { grid-template-columns: 1fr; padding: 28px 20px 24px; }
     .raccoon-card { max-width: 320px; margin: 0 auto; }
     .stats { grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 20px; }
+    /* 5 cards in a 2-col grid leaves a lonely orphan in row 3. Span the
+       last card across both columns so the section reads as 2 / 2 / banner
+       instead of 2 / 2 / 1. */
+    .stats > :last-child { grid-column: 1 / -1; }
     .map-feed { grid-template-columns: 1fr; padding: 20px; gap: 24px; }
     #map { height: 380px; }
     .form-page { padding: 28px 16px; }
@@ -848,9 +851,55 @@ footer.foot {
     .sev-btn-desc { font-size: 11px; }
     footer.foot { padding: 20px; }
 }
+/* Phone-sized viewports get a two-tier nav: brand on top, scrollable pill
+   buttons on the row below. Solves the cramming problem at ≤520px where
+   brand + 4 links + LIVE pill compete for ~328px of usable width. */
+@media (max-width: 720px) {
+    .nav-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 10px 16px 0;
+    }
+    .nav-inner > .brand { padding-bottom: 8px; }
+    .nav-links {
+        width: calc(100% + 32px);
+        margin: 0 -16px;
+        padding: 8px 16px 12px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        gap: 6px;
+    }
+    .nav-links::-webkit-scrollbar { display: none; }
+    .nav-link {
+        flex-shrink: 0;
+        padding: 10px 16px;
+        background: rgba(27, 27, 27, 0.05);
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink-65);
+    }
+    .nav-link.active {
+        background: var(--ink);
+        color: var(--bg);
+    }
+    /* Hide the standalone LIVE pill on phones — the live indicator is already
+       carried by the raccoon stamp. (The previous .nav-link.live-pill-wrap
+       selector never matched the actual markup.) */
+    .nav .live-pill { display: none; }
+}
 @media (max-width: 520px) {
     .brand-mark { width: 26px; height: 26px; font-size: 11px; }
     .hero h1 { font-size: 32px; }
+    /* Stack the map's section title and toggles vertically — at ~360px
+       phone widths the title + 24h/7d/30d/all + WIND button overflow the
+       horizontal flex row. Also bump the toggles' tap targets above the
+       28px-tall default so they're easier to thumb. */
+    .map-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .map-toggles { width: 100%; justify-content: space-between; }
+    .window-toggle button { padding: 9px 14px; font-size: 12px; }
+    .wind-toggle { padding: 9px 14px; font-size: 12px; }
     .stats { grid-template-columns: repeat(2, 1fr); }
     .stat-num { font-size: 28px; }
     .severity-grid { gap: 6px; }

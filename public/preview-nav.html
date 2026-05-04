@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+    <title>Nav preview — Leslieville Stink Reporter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="/styles/main.css">
+    <style>
+        /* ── Shared preview chrome ─────────────────────────────────── */
+        .variant-picker {
+            position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 100;
+            display: flex; gap: 4px;
+            padding: 4px;
+            background: var(--ink); border-radius: 999px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            font-family: var(--mono); font-size: 11px;
+        }
+        .variant-picker button {
+            background: transparent; color: rgba(255,255,255,0.6);
+            border: 0; padding: 8px 12px; border-radius: 999px;
+            font: inherit; cursor: pointer;
+            letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .variant-picker button.active { background: var(--amber); color: var(--ink); }
+
+        .preview-label {
+            position: fixed; top: 0; right: 0;
+            z-index: 100;
+            padding: 6px 12px;
+            background: var(--accent); color: white;
+            font-family: var(--mono); font-size: 10px;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            border-bottom-left-radius: 8px;
+        }
+
+        /* Hide all variants by default, then JS reveals one. */
+        [data-variant] { display: none; }
+        body[data-v="1"] [data-variant="1"],
+        body[data-v="2"] [data-variant="2"],
+        body[data-v="3"] [data-variant="3"],
+        body[data-v="4"] [data-variant="4"] { display: revert; }
+
+        /* ── Variant 1: Stripped ──────────────────────────────────── */
+        @media (max-width: 520px) {
+            body[data-v="1"] .nav-inner { padding: 8px 12px; gap: 8px; }
+            body[data-v="1"] .brand span { display: none; }
+            body[data-v="1"] .nav .live-pill { display: none; }
+            body[data-v="1"] .nav-link {
+                padding: 12px 10px;
+                font-size: 14px;
+                border-radius: 8px;
+                min-height: 44px;
+                display: inline-flex; align-items: center;
+            }
+        }
+
+        /* ── Variant 2: Hamburger ─────────────────────────────────── */
+        .nav-v2 .nav-toggle {
+            display: none;
+            background: none; border: 0;
+            padding: 0; margin: 0;
+            width: 44px; height: 44px;
+            cursor: pointer;
+            flex-direction: column; justify-content: center; align-items: center;
+            gap: 5px;
+        }
+        .nav-v2 .nav-toggle span {
+            display: block; width: 22px; height: 2px;
+            background: var(--ink);
+            border-radius: 2px;
+            transition: transform 0.22s, opacity 0.22s;
+        }
+        .nav-v2[data-open="true"] .nav-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .nav-v2[data-open="true"] .nav-toggle span:nth-child(2) { opacity: 0; }
+        .nav-v2[data-open="true"] .nav-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+        .nav-v2 .nav-drawer { display: none; }
+        @media (max-width: 720px) {
+            body[data-v="2"] .nav-v2 .nav-links { display: none; }
+            body[data-v="2"] .nav-v2 .nav-toggle { display: flex; }
+            body[data-v="2"] .nav-v2 .nav-drawer {
+                display: block;
+                max-height: 0; overflow: hidden;
+                transition: max-height 0.25s ease;
+                background: rgba(250, 247, 242, 0.97);
+                backdrop-filter: saturate(180%) blur(12px);
+                border-top: 1px solid transparent;
+            }
+            body[data-v="2"] .nav-v2[data-open="true"] .nav-drawer {
+                max-height: 320px;
+                border-top-color: var(--rule);
+            }
+            body[data-v="2"] .nav-v2 .nav-drawer a {
+                display: flex; align-items: center; justify-content: space-between;
+                padding: 16px 20px;
+                font-family: var(--sans); font-size: 16px; font-weight: 500;
+                color: var(--ink); text-decoration: none;
+                border-bottom: 1px solid var(--rule);
+            }
+            body[data-v="2"] .nav-v2 .nav-drawer a.active { color: var(--accent); }
+            body[data-v="2"] .nav-v2 .nav-drawer a:last-child { border-bottom: 0; }
+            body[data-v="2"] .nav-v2 .nav-drawer .live-pill { font-size: 9px; }
+        }
+
+        /* ── Variant 3: Bottom tab bar ────────────────────────────── */
+        .bottom-nav { display: none; }
+        @media (max-width: 720px) {
+            body[data-v="3"] .nav-v3 .nav-links { display: none; }
+            body[data-v="3"] .bottom-nav {
+                display: flex;
+                position: fixed; bottom: 0; left: 0; right: 0;
+                z-index: 49;
+                justify-content: space-around;
+                background: rgba(250, 247, 242, 0.96);
+                backdrop-filter: saturate(180%) blur(12px);
+                border-top: 1px solid var(--rule);
+                padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
+            }
+            body[data-v="3"] .bottom-nav .bn-tab {
+                flex: 1;
+                display: flex; flex-direction: column; align-items: center; gap: 2px;
+                padding: 8px 4px;
+                color: var(--ink-65);
+                font-family: var(--mono); font-size: 10px;
+                font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+                text-decoration: none;
+                min-height: 48px;
+            }
+            body[data-v="3"] .bottom-nav .bn-tab svg { width: 22px; height: 22px; }
+            body[data-v="3"] .bottom-nav .bn-tab.active { color: var(--accent); }
+            body[data-v="3"] .bottom-nav .bn-tab.active svg { fill: var(--accent); }
+            body[data-v="3"] .preview-content { padding-bottom: 80px; } /* clear the bottom nav */
+            body[data-v="3"] .variant-picker { bottom: 76px; } /* lift picker above bottom nav */
+        }
+
+        /* ── Variant 4: Two-tier pills ────────────────────────────── */
+        @media (max-width: 720px) {
+            body[data-v="4"] .nav-v4 .nav-inner {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0;
+                padding: 10px 16px 0;
+            }
+            body[data-v="4"] .nav-v4 .nav-inner > .brand { padding-bottom: 8px; }
+            body[data-v="4"] .nav-v4 .nav-links {
+                width: calc(100% + 32px);
+                margin: 0 -16px;
+                padding: 8px 16px 12px;
+                overflow-x: auto;
+                scrollbar-width: none;
+                gap: 6px;
+            }
+            body[data-v="4"] .nav-v4 .nav-links::-webkit-scrollbar { display: none; }
+            body[data-v="4"] .nav-v4 .nav-link {
+                flex-shrink: 0;
+                padding: 10px 16px;
+                background: rgba(27, 27, 27, 0.05);
+                border-radius: 999px;
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--ink-65);
+            }
+            body[data-v="4"] .nav-v4 .nav-link.active {
+                background: var(--ink);
+                color: var(--bg);
+            }
+            body[data-v="4"] .nav-v4 .nav .live-pill,
+            body[data-v="4"] .nav-v4 .live-pill { display: none; }
+        }
+    </style>
+</head>
+<body data-v="1">
+    <span class="preview-label">Preview</span>
+
+    <!-- ── Variant 1: Stripped ─────────────────────────────────── -->
+    <nav class="nav nav-v1" data-variant="1">
+        <div class="nav-inner">
+            <a class="brand" href="/">
+                <img src="/favicon.svg" alt="" class="brand-mark" width="32" height="32">
+                <span>Leslieville Stink Reporter</span>
+            </a>
+            <div class="nav-links">
+                <a class="nav-link active" href="/">Dashboard</a>
+                <a class="nav-link" href="/report">Report</a>
+                <a class="nav-link" href="/subscribe">Alerts</a>
+                <a class="nav-link" href="/about">About</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ── Variant 2: Hamburger ────────────────────────────────── -->
+    <nav class="nav nav-v2" data-variant="2">
+        <div class="nav-inner">
+            <a class="brand" href="/">
+                <img src="/favicon.svg" alt="" class="brand-mark" width="32" height="32">
+                <span>Leslieville Stink Reporter</span>
+            </a>
+            <div class="nav-links">
+                <a class="nav-link active" href="/">Dashboard</a>
+                <a class="nav-link" href="/report">Report</a>
+                <a class="nav-link" href="/subscribe">Alerts</a>
+                <a class="nav-link" href="/about">About</a>
+            </div>
+            <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+        <div class="nav-drawer" id="navDrawer2">
+            <a class="active" href="/">Dashboard <span class="live-pill"><span class="live-dot"></span>live</span></a>
+            <a href="/report">Report</a>
+            <a href="/subscribe">Alerts</a>
+            <a href="/about">About</a>
+        </div>
+    </nav>
+
+    <!-- ── Variant 3: Bottom tab bar ───────────────────────────── -->
+    <div data-variant="3">
+        <nav class="nav nav-v3">
+            <div class="nav-inner">
+                <a class="brand" href="/">
+                    <img src="/favicon.svg" alt="" class="brand-mark" width="32" height="32">
+                    <span>Leslieville Stink Reporter</span>
+                </a>
+                <div class="nav-links">
+                    <a class="nav-link active" href="/">Dashboard</a>
+                    <a class="nav-link" href="/report">Report</a>
+                    <a class="nav-link" href="/subscribe">Alerts</a>
+                    <a class="nav-link" href="/about">About</a>
+                </div>
+            </div>
+        </nav>
+        <nav class="bottom-nav" aria-label="Sections">
+            <a class="bn-tab active" href="/">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
+                <span>Map</span>
+            </a>
+            <a class="bn-tab" href="/report">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zm17.71-10.21a1 1 0 0 0 0-1.42l-2.34-2.34a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75z"/></svg>
+                <span>Report</span>
+            </a>
+            <a class="bn-tab" href="/subscribe">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2m6-6V11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 1 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1z"/></svg>
+                <span>Alerts</span>
+            </a>
+            <a class="bn-tab" href="/about">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8"/></svg>
+                <span>About</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- ── Variant 4: Two-tier scrollable pills ─────────────────── -->
+    <nav class="nav nav-v4" data-variant="4">
+        <div class="nav-inner">
+            <a class="brand" href="/">
+                <img src="/favicon.svg" alt="" class="brand-mark" width="32" height="32">
+                <span>Leslieville Stink Reporter</span>
+            </a>
+            <div class="nav-links">
+                <a class="nav-link active" href="/">Dashboard</a>
+                <a class="nav-link" href="/report">Report</a>
+                <a class="nav-link" href="/subscribe">Alerts</a>
+                <a class="nav-link" href="/about">About</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ── Representative content so the user can see it in context ─ -->
+    <main class="app preview-content">
+        <section class="hero">
+            <div class="raccoon-wrap">
+                <div class="raccoon-shell" data-mood="2">
+                    <div class="raccoon-card" id="raccoonCard"></div>
+                    <div class="raccoon-stamp">
+                        <span class="stamp-mood"><span class="mood-dot"></span><span>Faint</span></span>
+                        <span class="live"><span class="live-dot" style="background:#FFB347"></span>&nbsp;live</span>
+                    </div>
+                </div>
+                <div class="raccoon-areas">
+                    <span class="area-prefix">Smelly now</span>
+                    <span class="area-pill"><span class="area-dot" style="--c:#EFE3C2"></span>M4M<span class="area-count">1</span></span>
+                </div>
+            </div>
+            <div>
+                <div class="eyebrow">Today's Stench Report · Monday, May 4</div>
+                <h1>Smelled something? <em>Tell the city what 311 won't capture.</em></h1>
+                <p>Scroll the page to see how this header behaves with content. Resize the window or open Chrome devtools mobile mode to test breakpoints. Use the picker at the bottom to switch variants.</p>
+                <div class="hero-actions">
+                    <a class="btn btn-primary" href="#">Report a smell <span aria-hidden="true">→</span></a>
+                    <a class="btn btn-secondary" href="#">Get alerts</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats" aria-label="Report counts">
+            <div><div class="stat-label">Reports today</div><div class="stat-num">1</div></div>
+            <div><div class="stat-label">This week</div><div class="stat-num">1</div></div>
+            <div><div class="stat-label">This year</div><div class="stat-num">1</div></div>
+            <div><div class="stat-label">Unique reporters (7d)</div><div class="stat-num">1</div></div>
+            <div><div class="stat-label">All-clear check-ins (7d)</div><div class="stat-num">0</div></div>
+        </section>
+    </main>
+
+    <!-- ── Variant picker ──────────────────────────────────────── -->
+    <div class="variant-picker" role="tablist">
+        <button data-v="1" class="active">1 · Stripped</button>
+        <button data-v="2">2 · Hamburger</button>
+        <button data-v="3">3 · Bottom tabs</button>
+        <button data-v="4">4 · Two-tier</button>
+    </div>
+
+    <script src="/js/raccoon.js"></script>
+    <script>
+        // Render a mood-2 raccoon so the preview's hero looks like the real page.
+        if (window.LSV && window.LSV.renderRaccoon) {
+            window.LSV.renderRaccoon(document.getElementById('raccoonCard'), 2);
+        }
+
+        // Variant switcher: ?v=1|2|3|4 controls which nav is shown.
+        function show(v) {
+            document.body.dataset.v = String(v);
+            document.querySelectorAll('.variant-picker button').forEach((b) => {
+                b.classList.toggle('active', b.dataset.v === String(v));
+            });
+            try { history.replaceState(null, '', '?v=' + v); } catch (_e) { /* noop */ }
+        }
+        const initial = new URLSearchParams(location.search).get('v') || '1';
+        show(initial);
+        document.querySelectorAll('.variant-picker button').forEach((b) => {
+            b.addEventListener('click', () => show(b.dataset.v));
+        });
+
+        // Variant 2 hamburger toggle.
+        const navV2 = document.querySelector('.nav-v2');
+        navV2.querySelector('.nav-toggle').addEventListener('click', (e) => {
+            const open = navV2.dataset.open === 'true';
+            navV2.dataset.open = String(!open);
+            e.currentTarget.setAttribute('aria-expanded', String(!open));
+        });
+    </script>
+</body>
+</html>

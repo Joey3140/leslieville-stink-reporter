@@ -129,12 +129,16 @@
         try {
             const { counts } = await getJson(`/api/reports/heatmap?window=${activeWindow}`);
             if (fsaLayer) fsaLayer.remove();
+            // FSAs with at least one positive report tint with the heat ramp so a
+            // location-less submission still paints its FSA. The 200m grid still
+            // overlays on top wherever opt-in dots exist for finer resolution.
             fsaLayer = L.geoJSON(geojson, {
-                style: () => ({
-                    fillColor: '#1B1B1B', fillOpacity: 0.02,
-                    weight: 1.5, color: '#1B1B1B', opacity: 0.55,
-                    dashArray: '6 4',
-                }),
+                style: (feature) => {
+                    const c = counts[feature.properties.CFSAUID] || 0;
+                    return c > 0
+                        ? { fillColor: colorFor(c), fillOpacity: 0.32, weight: 1.5, color: '#1B1B1B', opacity: 0.55, dashArray: '6 4' }
+                        : { fillColor: '#1B1B1B',  fillOpacity: 0.02, weight: 1.5, color: '#1B1B1B', opacity: 0.55, dashArray: '6 4' };
+                },
                 onEachFeature: (feature, layer) => {
                     setupFsaTooltip(feature, layer, counts[feature.properties.CFSAUID] || 0);
                 },

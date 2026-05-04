@@ -1,7 +1,7 @@
 const express = require('express');
 const { requireDb, COLLECTIONS, FieldValue } = require('../utils/firestore');
 const { hmacIp, getClientIp, deterministicJitter } = require('../utils/hash');
-const { latLngToFsa, isAllowedFsa, fsaForIntersection } = require('../utils/fsa');
+const { latLngToFsa, isAllowedFsa, fsaForIntersection, latLngForIntersection } = require('../utils/fsa');
 const { validate, validateQuery, schemas, ODOUR_TYPES, SEVERITY_VALUES } = require('../middleware/validate');
 const { createRateLimit } = require('../middleware/rate-limit');
 const { turnstileMiddleware } = require('../middleware/turnstile');
@@ -127,6 +127,25 @@ router.post('/',
             report.approxLat = jittered.lat;
             report.approxLng = jittered.lng;
             report.userConsentedLocation = true;
+            report.locationSource = 'gps';
+        } else if (data.intersection) {
+            // No GPS, but an allow-listed intersection — synthesize a coord from the
+            // intersection's known lat/lng and jitter it the same way. Lets these
+            // reports paint the 200m grid overlay just like GPS reports do, while
+            // still respecting per-reporter quantization (~90m) so a single reporter's
+            // 50 reports at "Queen & Pape" don't all stack on a pinpoint coord.
+            // Privacy: Toronto major intersections are public landmarks, the
+            // submission is already anonymous (no email/auth), and the jitter is
+            // deterministic per-(ipHash,dayKey) so repeat submissions don't widen
+            // the visible footprint.
+            const ic = latLngForIntersection(data.intersection);
+            if (ic) {
+                const jittered = deterministicJitter(ic.lat, ic.lng, ipHash, dayKey(now));
+                report.approxLat = jittered.lat;
+                report.approxLng = jittered.lng;
+                report.userConsentedLocation = true;
+                report.locationSource = 'intersection';
+            }
         }
         if (reviewFlags.length > 0) report.reviewFlags = reviewFlags;
 

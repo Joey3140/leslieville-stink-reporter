@@ -78,21 +78,25 @@ let intersectionsCache = null;
 function loadIntersections() {
     if (intersectionsCache) return intersectionsCache;
     const file = path.join(__dirname, '..', 'public', 'data', 'intersections.json');
-    const empty = { list: [], names: new Set(), byFsa: {}, fsaByName: {} };
+    const empty = { list: [], names: new Set(), byFsa: {}, fsaByName: {}, coordsByName: {} };
     try {
         const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
         const list = Array.isArray(raw.intersections) ? raw.intersections : [];
         const names = new Set();
         const byFsa = {};
         const fsaByName = {};
+        const coordsByName = {};
         list.forEach((x) => {
             if (!x || typeof x.name !== 'string' || typeof x.fsa !== 'string') return;
             if (!ALLOWED_FSAS.includes(x.fsa)) return;
             names.add(x.name);
             fsaByName[x.name] = x.fsa;
             (byFsa[x.fsa] = byFsa[x.fsa] || []).push(x.name);
+            if (Number.isFinite(x.lat) && Number.isFinite(x.lng)) {
+                coordsByName[x.name] = { lat: x.lat, lng: x.lng };
+            }
         });
-        intersectionsCache = { list, names, byFsa, fsaByName };
+        intersectionsCache = { list, names, byFsa, fsaByName, coordsByName };
         return intersectionsCache;
     } catch (err) {
         log.warn({ err: err.message }, 'intersections.json not loaded — intersection feature disabled');
@@ -109,7 +113,11 @@ function fsaForIntersection(name) {
     return loadIntersections().fsaByName[name] || null;
 }
 
+function latLngForIntersection(name) {
+    return loadIntersections().coordsByName[name] || null;
+}
+
 module.exports = {
     ALLOWED_FSAS, latLngToFsa, isAllowedFsa, isValidFsaShape, loadGeojson,
-    loadIntersections, isAllowedIntersection, fsaForIntersection,
+    loadIntersections, isAllowedIntersection, fsaForIntersection, latLngForIntersection,
 };

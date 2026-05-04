@@ -192,3 +192,17 @@ Verify after deploy: `curl -X POST https://leslieville-stink-reporter.vercel.app
 - **v0.9 (this commit)** — email alerts subsystem (Resend, double opt-in, cron-triggered with cooldown + daily cap circuit breaker, one-click unsubscribe) ✅
 - **v1.0** — Claude Design output applied to UI; Cloudflare Turnstile + Resend + Firebase keys wired; deployed to Vercel
 - **v1.1** — custom sending domain (SPF/DKIM/DMARC), weekly digest, photo uploads, admin moderation UI
+
+---
+
+## License
+
+**[PolyForm Noncommercial 1.0.0](LICENSE)** — source-available for inspection, modification, and noncommercial use. Per the license, use is explicitly permitted by:
+
+- **Government institutions** (e.g. the City of Toronto) deploying for public benefit
+- Charitable organizations, public research, public health, environmental protection orgs
+- Personal use, hobby projects, study, civic experimentation
+
+Forks must keep this license + the attribution notice. **Commercial use** (selling, paid-SaaS hosting, building a paid product on top) requires a separate license — contact the author.
+
+Copyright © 2026 Joey Drury. Required notice (per license): `Copyright (c) 2026 Joey Drury — https://www.leslievillestench.com`

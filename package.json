@@ -19,7 +19,7 @@
         "odour-reporting"
     ],
     "author": "Joey Drury",
-    "license": "MIT",
+    "license": "PolyForm-Noncommercial-1.0.0",
     "dependencies": {
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",

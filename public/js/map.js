@@ -204,11 +204,13 @@
     }
 
     function updateHeadline(today, mood) {
+        // <em> elements are styled by the global Honest Ed's CSS rule
+        // (yellow highlight pill, rotated). No inline overrides — let the CSS work.
         const h = document.getElementById('heroHeadline');
         if (today === 0) {
-            h.innerHTML = 'The raccoon is napping. <em style="font-style:italic;color:#7FA88F">All clear.</em>';
+            h.innerHTML = 'The raccoon is napping. <em>All clear.</em>';
         } else if (mood >= 4) {
-            h.innerHTML = `It's bad out there. <em style="font-style:italic;color:#DA291C">${today} report${today === 1 ? '' : 's'}</em> in the last 24 hours.`;
+            h.innerHTML = `It's bad out there. <em>${today} report${today === 1 ? '' : 's'}</em> in the last 24 hours.`;
         } else {
             h.innerHTML = "Smelled something? <em>Tell the city what 311 won't capture.</em>";
         }

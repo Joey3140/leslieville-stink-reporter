@@ -12,6 +12,13 @@
 
     function eyes(mood, blink) {
         if (mood === 5) return '';
+        // Mood 1: sleeping/content — only the closed-eye curves. No whites or irises peeking through.
+        if (mood === 1) {
+            return `
+                <path d="M 96 108 Q 104 112 112 108"  stroke="${EYE}" stroke-width="2.5" fill="none" stroke-linecap="round" />
+                <path d="M 128 108 Q 136 112 144 108" stroke="${EYE}" stroke-width="2.5" fill="none" stroke-linecap="round" />`;
+        }
+        // Moods 2-4: open eyes
         const lookSide = (mood === 2 || mood === 3) ? 1 : 0;
         const irisOff = lookSide ? 3 : 0;
         let out = `
@@ -28,12 +35,6 @@
             out += `
                 <path d="M 99 116 Q 97 124 100 130 Q 103 124 101 116 Z" fill="#7BB6D6" opacity="0.85" />
                 <path d="M 141 116 Q 139 124 142 130 Q 145 124 143 116 Z" fill="#7BB6D6" opacity="0.85" />`;
-        }
-        if (mood === 1) {
-            // Sleepy/content eyes — just the closed-eye curves, no hooded-eyelid rects.
-            out += `
-                <path d="M 96 108 Q 104 112 112 108"  stroke="${EYE}" stroke-width="2.5" fill="none" stroke-linecap="round" />
-                <path d="M 128 108 Q 136 112 144 108" stroke="${EYE}" stroke-width="2.5" fill="none" stroke-linecap="round" />`;
         }
         return out;
     }

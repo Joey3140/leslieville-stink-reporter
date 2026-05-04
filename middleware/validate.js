@@ -44,7 +44,7 @@ const fsaCode = z.string().trim().toUpperCase().refine((v) => ALLOWED_FSAS.inclu
 });
 
 const SEVERITY_VALUES = [1, 3, 5];
-const ODOUR_TYPES = ['rotten-eggs', 'sewage', 'chemical', 'other'];
+const ODOUR_TYPES = ['rotten-eggs', 'sewage', 'manure', 'chemical', 'other'];
 const WINDOW_VALUES = ['24h', '7d', '30d', 'all'];
 
 const schemas = {

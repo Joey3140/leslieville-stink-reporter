@@ -59,7 +59,8 @@ window.LSV = (function () {
     const SEV_EMOJI = { 1: '🦝', 3: '😖', 5: '🤢' };
     const TYPE_LABEL = {
         'rotten-eggs': 'rotten eggs',
-        sewage: 'sewage / manure',
+        sewage: 'sewage',
+        manure: 'manure',
         chemical: 'chemical',
         other: 'other',
     };

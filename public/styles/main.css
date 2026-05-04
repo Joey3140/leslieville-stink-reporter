@@ -91,11 +91,11 @@ h1, h2, h3 {
     text-decoration: none; color: inherit;
 }
 .brand-mark {
-    width: 30px; height: 30px; border-radius: 8px;
-    background: var(--ink); color: var(--amber);
+    width: 32px; height: 32px;
     display: inline-flex; align-items: center; justify-content: center;
-    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
 }
+.brand-mark img, .brand-mark svg { width: 100%; height: 100%; display: block; }
 .nav-links { display: flex; gap: 4px; align-items: center; }
 .nav-link {
     padding: 8px 12px; border-radius: 8px;
@@ -660,3 +660,27 @@ footer.foot {
 /* Inputs reset */
 input[type="checkbox"] { accent-color: var(--ink); }
 input[type="range"] { accent-color: var(--ink); }
+
+/* ── Honest Ed's hand-painted headline treatment ──────────────────
+   Ported from the Stink Tracker prototype. Toronto-coded, unmistakable.
+   Stacked drop-shadow (amber + TTC red) + italic Fraunces, with
+   <em> elements rendered as a yellow rotated highlight pill. */
+h1 {
+    font-style: italic;
+    text-shadow: 1.5px 1.5px 0 var(--amber), 3px 3px 0 var(--accent);
+    letter-spacing: -0.02em;
+}
+h1 em {
+    background: #FFE066;
+    padding: 0 8px;
+    transform: rotate(-1.2deg) skew(-2deg);
+    display: inline-block;
+    border: 2px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--accent);
+    font-style: normal;
+    color: var(--ink) !important;   /* override any inline color from JS */
+}
+@media (max-width: 520px) {
+    h1 { text-shadow: 1px 1px 0 var(--amber), 2px 2px 0 var(--accent); }
+    h1 em { box-shadow: 2.5px 2.5px 0 var(--accent); padding: 0 6px; }
+}

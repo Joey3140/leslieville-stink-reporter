@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Raccoon">
+  <circle cx="18" cy="20" r="7" fill="#5A5249"/>
+  <circle cx="46" cy="20" r="7" fill="#5A5249"/>
+  <circle cx="18" cy="22" r="3" fill="#2E2A24"/>
+  <circle cx="46" cy="22" r="3" fill="#2E2A24"/>
+  <ellipse cx="32" cy="34" rx="22" ry="20" fill="#5A5249"/>
+  <path d="M 12 30 Q 18 24 28 26 Q 31 28 32 30 Q 33 28 36 26 Q 46 24 52 30 Q 50 38 40 40 Q 33 40 32 38 Q 31 40 24 40 Q 14 38 12 30 Z" fill="#2E2A24"/>
+  <path d="M 28 18 L 32 30 L 36 18 Q 32 22 28 18 Z" fill="#C8B89C" opacity="0.85"/>
+  <ellipse cx="32" cy="42" rx="9" ry="6" fill="#C8B89C"/>
+  <ellipse cx="32" cy="40" rx="2" ry="1.5" fill="#1B1B1B"/>
+  <circle cx="24" cy="32" r="2.2" fill="#FFFFFF"/>
+  <circle cx="40" cy="32" r="2.2" fill="#FFFFFF"/>
+  <circle cx="24" cy="32" r="1.2" fill="#1B1B1B"/>
+  <circle cx="40" cy="32" r="1.2" fill="#1B1B1B"/>
+</svg>

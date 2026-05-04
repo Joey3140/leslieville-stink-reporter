@@ -155,11 +155,15 @@
         const sevLabel = SEV_LABEL[sev] || 'Strong';
         const odour = escapeHtml(TYPE_LABEL[r.odourType] || r.odourType || '');
         const note = r.description ? `<span style="opacity:0.85">"${escapeHtml(r.description)}"</span>` : '';
+        const intersection = r.intersection
+            ? `<span class="feed-intersection">· ${escapeHtml(r.intersection)}</span>`
+            : '';
         return `
             <div class="feed-item">
                 <div class="feed-item-row">
                     <div class="feed-item-meta">
                         <span class="feed-fsa">${escapeHtml(r.fsa)}</span>
+                        ${intersection}
                         <span class="sev-badge ${sevClass}"><span class="dot"></span>${sevLabel} · ${sev}</span>
                     </div>
                     <span class="feed-time">${escapeHtml(formatTimeAgo(r.createdAt))}</span>

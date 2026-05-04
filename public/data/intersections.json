@@ -1,0 +1,36 @@
+{
+    "version": 1,
+    "comment": "Curated allow-list of major intersections in the FSAs most affected by the Ashbridges Bay plant. Stored verbatim on each report; never derived to coordinates. To add an intersection, append here and redeploy.",
+    "intersections": [
+        { "name": "Queen & Carlaw",        "fsa": "M4M" },
+        { "name": "Queen & Logan",         "fsa": "M4M" },
+        { "name": "Queen & Pape",          "fsa": "M4M" },
+        { "name": "Dundas & Carlaw",       "fsa": "M4M" },
+        { "name": "Dundas & Pape",         "fsa": "M4M" },
+        { "name": "Gerrard & Carlaw",      "fsa": "M4M" },
+        { "name": "Gerrard & Pape",        "fsa": "M4M" },
+        { "name": "Eastern & Carlaw",      "fsa": "M4M" },
+        { "name": "Eastern & Logan",       "fsa": "M4M" },
+        { "name": "Eastern & Leslie",      "fsa": "M4M" },
+        { "name": "Lake Shore & Leslie",   "fsa": "M4M" },
+
+        { "name": "Queen & Greenwood",     "fsa": "M4L" },
+        { "name": "Queen & Coxwell",       "fsa": "M4L" },
+        { "name": "Dundas & Greenwood",    "fsa": "M4L" },
+        { "name": "Dundas & Coxwell",      "fsa": "M4L" },
+        { "name": "Gerrard & Coxwell",     "fsa": "M4L" },
+        { "name": "Lake Shore & Coxwell",  "fsa": "M4L" },
+
+        { "name": "Queen & Woodbine",      "fsa": "M4E" },
+        { "name": "Queen & Lee",           "fsa": "M4E" },
+        { "name": "Kingston & Woodbine",   "fsa": "M4E" },
+        { "name": "Lake Shore & Woodbine", "fsa": "M4E" },
+
+        { "name": "Danforth & Donlands",   "fsa": "M4J" },
+        { "name": "Danforth & Greenwood",  "fsa": "M4J" },
+        { "name": "Danforth & Coxwell",    "fsa": "M4J" },
+        { "name": "Gerrard & Donlands",    "fsa": "M4J" },
+
+        { "name": "Danforth & Pape",       "fsa": "M4K" }
+    ]
+}

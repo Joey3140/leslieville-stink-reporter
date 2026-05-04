@@ -317,6 +317,10 @@ section { padding: 32px 48px; }
     font-family: var(--mono); font-size: 12px; font-weight: 600;
     color: var(--ink);
 }
+.feed-intersection {
+    font-family: var(--sans); font-size: 12px; color: var(--ink-65);
+    white-space: nowrap;
+}
 .feed-time {
     font-family: var(--mono); font-size: 11px;
     color: var(--ink-50);
@@ -424,6 +428,17 @@ section { padding: 32px 48px; }
 .checkbox-row {
     display: flex; align-items: center; gap: 10px; margin-top: 12px;
     font-family: var(--sans); font-size: 13px; color: var(--ink-65);
+    cursor: pointer;
+}
+.intersection-picker { margin-top: 14px; }
+.intersection-picker select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(27, 27, 27, 0.15);
+    background: var(--paper);
+    font-family: var(--sans); font-size: 14px;
+    color: var(--ink);
     cursor: pointer;
 }
 

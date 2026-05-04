@@ -89,6 +89,17 @@
                     </select>
                 </div>
                 <div style="margin-top:8px"><button type="button" id="autodetectBtn" class="btn-link">Use my location</button></div>
+
+                <div id="intersectionPicker" class="intersection-picker" hidden>
+                    <label for="intersection" class="form-section-label" style="margin-bottom:6px;display:block">
+                        Closest major intersection (optional)
+                    </label>
+                    <select id="intersection" name="intersection" aria-describedby="intersectionHint" style="max-width:none">
+                        <option value="">— pick one (optional)</option>
+                    </select>
+                    <p class="hint" id="intersectionHint">Helps narrow it down without revealing your address. Stored as a public street name only.</p>
+                </div>
+
                 <label class="checkbox-row">
                     <input type="checkbox" id="shareLocation">
                     Share precise location (within ~100m, jittered) — helps map clusters

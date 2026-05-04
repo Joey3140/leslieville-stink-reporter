@@ -72,4 +72,44 @@ function isValidFsaShape(fsa) {
     return typeof fsa === 'string' && FSA_REGEX.test(fsa.toUpperCase());
 }
 
-module.exports = { ALLOWED_FSAS, latLngToFsa, isAllowedFsa, isValidFsaShape, loadGeojson };
+// ── Intersection allow-list ────────────────────────────────────────────
+// Loaded once at module init from public/data/intersections.json.
+let intersectionsCache = null;
+function loadIntersections() {
+    if (intersectionsCache) return intersectionsCache;
+    const file = path.join(__dirname, '..', 'public', 'data', 'intersections.json');
+    const empty = { list: [], names: new Set(), byFsa: {}, fsaByName: {} };
+    try {
+        const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const list = Array.isArray(raw.intersections) ? raw.intersections : [];
+        const names = new Set();
+        const byFsa = {};
+        const fsaByName = {};
+        list.forEach((x) => {
+            if (!x || typeof x.name !== 'string' || typeof x.fsa !== 'string') return;
+            if (!ALLOWED_FSAS.includes(x.fsa)) return;
+            names.add(x.name);
+            fsaByName[x.name] = x.fsa;
+            (byFsa[x.fsa] = byFsa[x.fsa] || []).push(x.name);
+        });
+        intersectionsCache = { list, names, byFsa, fsaByName };
+        return intersectionsCache;
+    } catch (err) {
+        log.warn({ err: err.message }, 'intersections.json not loaded — intersection feature disabled');
+        intersectionsCache = empty;
+        return empty;
+    }
+}
+
+function isAllowedIntersection(name) {
+    return loadIntersections().names.has(name);
+}
+
+function fsaForIntersection(name) {
+    return loadIntersections().fsaByName[name] || null;
+}
+
+module.exports = {
+    ALLOWED_FSAS, latLngToFsa, isAllowedFsa, isValidFsaShape, loadGeojson,
+    loadIntersections, isAllowedIntersection, fsaForIntersection,
+};

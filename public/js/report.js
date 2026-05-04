@@ -15,6 +15,8 @@
     const charCount = document.getElementById('charCount');
     const turnstileSlot = document.getElementById('turnstileSlot');
     const turnstileLabel = document.getElementById('turnstileLabel');
+    const intersectionPicker = document.getElementById('intersectionPicker');
+    const intersectionSelect = document.getElementById('intersection');
 
     let severity = null;
     let lastLocation = null;
@@ -44,7 +46,49 @@
     fsaSelect.addEventListener('change', () => {
         fsaDisplay.textContent = fsaSelect.value || 'M4M';
         fsaSub.textContent = ' · ' + (fsaSelect.options[fsaSelect.selectedIndex].text.split('—')[1]?.trim() || '');
+        refreshIntersectionPicker(fsaSelect.value);
     });
+
+    // ── Intersection picker (optional, allow-listed per FSA) ──
+    let intersectionsCache = null;
+    async function loadIntersectionsList() {
+        if (intersectionsCache) return intersectionsCache;
+        try {
+            const r = await fetch('/data/intersections.json');
+            intersectionsCache = await r.json();
+        } catch (err) {
+            console.warn('intersections.json failed to load — picker disabled', err);
+            intersectionsCache = { intersections: [] };
+        }
+        return intersectionsCache;
+    }
+
+    async function refreshIntersectionPicker(currentFsa) {
+        const data = await loadIntersectionsList();
+        const matches = (data.intersections || []).filter((x) => x.fsa === currentFsa);
+        if (matches.length === 0) {
+            intersectionPicker.hidden = true;
+            intersectionSelect.value = '';
+            return;
+        }
+        const previous = intersectionSelect.value;
+        intersectionSelect.innerHTML = '<option value="">— pick one (optional)</option>'
+            + matches.map((x) => `<option value="${escapeAttr(x.name)}">${escapeHtml(x.name)}</option>`).join('');
+        // Preserve previous selection if it's still valid for the new FSA
+        if (previous && matches.find((x) => x.name === previous)) {
+            intersectionSelect.value = previous;
+        } else {
+            intersectionSelect.value = '';
+        }
+        intersectionPicker.hidden = false;
+    }
+
+    function escapeAttr(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // Initialise picker for the default FSA (M4M)
+    refreshIntersectionPicker(fsaSelect.value);
 
     sevButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -211,6 +255,9 @@
             clientId: getClientId(),
             turnstileToken: tok,
         };
+        if (intersectionSelect.value) {
+            body.intersection = intersectionSelect.value;
+        }
         if (shareLocation.checked && lastLocation) {
             body.approxLat = lastLocation.lat;
             body.approxLng = lastLocation.lng;

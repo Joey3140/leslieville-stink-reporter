@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { ALLOWED_FSAS } = require('../utils/fsa');
+const { ALLOWED_FSAS, isAllowedIntersection } = require('../utils/fsa');
 
 function formatIssue(issues) {
     const first = issues[0];
@@ -53,6 +53,9 @@ const schemas = {
         severity: z.number().int().refine((v) => SEVERITY_VALUES.includes(v), { message: 'severity must be 1, 3, or 5' }),
         odourType: z.enum(ODOUR_TYPES),
         description: z.string().trim().max(280, 'description must be 280 characters or fewer').optional(),
+        intersection: z.string().refine((v) => isAllowedIntersection(v), {
+            message: 'intersection must be one of the curated allow-list values',
+        }).optional(),
         approxLat: z.number().finite().min(43).max(44).optional(),
         approxLng: z.number().finite().min(-80).max(-78).optional(),
         clientId: z.string().regex(/^[0-9a-f]{16,64}$/, 'clientId must be 16-64 lowercase hex chars'),

@@ -1,7 +1,7 @@
 const express = require('express');
 const { requireDb, COLLECTIONS, FieldValue } = require('../utils/firestore');
 const { hmacIp, getClientIp, deterministicJitter } = require('../utils/hash');
-const { latLngToFsa, isAllowedFsa } = require('../utils/fsa');
+const { latLngToFsa, isAllowedFsa, fsaForIntersection } = require('../utils/fsa');
 const { validate, validateQuery, schemas, ODOUR_TYPES, SEVERITY_VALUES } = require('../middleware/validate');
 const { createRateLimit } = require('../middleware/rate-limit');
 const { turnstileMiddleware } = require('../middleware/turnstile');
@@ -71,6 +71,17 @@ router.post('/',
             return res.status(400).json({ error: 'Invalid FSA' });
         }
 
+        // If user picked an intersection, it must belong to the resolved FSA.
+        // Defensive: prevents a Beaches user from pinning a Leslieville report.
+        if (data.intersection) {
+            const expectedFsa = fsaForIntersection(data.intersection);
+            if (expectedFsa && expectedFsa !== fsa) {
+                return res.status(400).json({
+                    error: `Intersection "${data.intersection}" is in ${expectedFsa}, not ${fsa}.`,
+                });
+            }
+        }
+
         // Shadow-throttle: dedup on (clientId AND ipHash) — both must match an existing report
         // in the last 30 min. Requiring ipHash to match too prevents an attacker on a different
         // network from spoofing a victim's clientId to silence them. Composite index needed:
@@ -107,6 +118,7 @@ router.post('/',
             status,
         };
         if (data.description) report.description = data.description;
+        if (data.intersection) report.intersection = data.intersection;
         if (data.approxLat != null) {
             // Deterministic jitter: same reporter (ipHash) on same day always lands on the same
             // ~90m offset. Defeats triangulation-by-volume from the public dots endpoint.
@@ -195,6 +207,7 @@ router.get('/recent',
                     severity: d.severity,
                     odourType: d.odourType,
                     description: d.description ? d.description.slice(0, 280) : undefined,
+                    intersection: d.intersection,
                 };
             });
             res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');

@@ -158,40 +158,77 @@ section { padding: 32px 48px; }
    Without this, the stamp escapes to the viewport-edge containing block and
    spans the full page width. */
 .raccoon-wrap { position: relative; }
+/* Card + stamp share their own positioning context so the stamp anchors to the
+   card's bottom regardless of what sits below in the wrap (e.g. the smelly-areas
+   readout). Without this shell the stamp drifts down the page as more siblings
+   are added and ends up covering them. */
+.raccoon-shell { position: relative; }
 
 .raccoon-card {
-    background: var(--tile);
+    background: var(--mood-bg, var(--tile));
     border-radius: 24px;
     padding: 16px;
     aspect-ratio: 1 / 1;
     display: flex; align-items: center; justify-content: center;
+    transition: background-color 600ms ease;
 }
 .raccoon-card svg { width: 100%; height: 100%; }
+/* Mood-tinted card backgrounds. Scale matches the map heat ramp: green when the
+   raccoon is napping → deep red when it's overwhelming. Set via [data-mood] on
+   the shell so the card and stamp colors stay in sync. */
+.raccoon-shell[data-mood="1"] { --mood-bg: #D8E8D6; --mood-color: #4F8A5A; }
+.raccoon-shell[data-mood="2"] { --mood-bg: #F1E6BD; --mood-color: #C9A23E; }
+.raccoon-shell[data-mood="3"] { --mood-bg: #ECCB87; --mood-color: #C97A35; }
+.raccoon-shell[data-mood="4"] { --mood-bg: #DCA171; --mood-color: #B8552A; }
+.raccoon-shell[data-mood="5"] { --mood-bg: #C77A6E; --mood-color: #8E331C; }
+
 .raccoon-stamp {
     position: absolute; bottom: -10px; left: 16px; right: 16px;
     background: var(--ink); color: var(--bg);
     padding: 8px 14px; border-radius: 8px;
     font-family: var(--mono); font-size: 11px;
     letter-spacing: 0.06em; text-transform: uppercase;
-    display: flex; justify-content: space-between;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.raccoon-stamp .stamp-mood { display: inline-flex; align-items: center; gap: 8px; }
+.raccoon-stamp .mood-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--mood-color, var(--amber));
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+    transition: background-color 600ms ease;
 }
 .raccoon-stamp .live { color: var(--amber); }
 .raccoon-areas {
-    margin-top: 24px;
+    margin-top: 36px;
     padding: 0 4px;
     font-family: var(--sans);
     font-size: 13px;
     line-height: 1.45;
-    color: rgba(27, 27, 27, 0.68);
+    color: rgba(27, 27, 27, 0.7);
     min-height: 1.45em;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
 }
-.raccoon-areas strong {
-    color: var(--ink);
-    font-weight: 600;
+.raccoon-areas .area-prefix {
     font-family: var(--mono);
-    letter-spacing: 0.02em;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(27, 27, 27, 0.55);
 }
-.raccoon-areas .area-sep { opacity: 0.4; margin: 0 6px; }
+.raccoon-areas .area-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(27, 27, 27, 0.05);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+}
+.raccoon-areas .area-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--c, var(--amber));
+}
+.raccoon-areas .area-count { opacity: 0.6; font-weight: 500; }
 .hero h1 {
     font-size: clamp(36px, 4.6vw, 64px);
     line-height: 1.02;

@@ -354,9 +354,26 @@
     // ── Mood label + smelly-areas readout ─────────────────────────────────
     // Surface the raccoon's mood as plain words ("FAINT", "STRONG", …) so the
     // status is legible at a glance, and list the FSAs driving today's signal.
+    // Card background + dot colors track the same heat ramp the map uses, so a
+    // glance at the raccoon previews the map.
     const MOOD_WORDS = { 1: 'All clear', 2: 'Faint', 3: 'Noticeable', 4: 'Strong', 5: 'Overwhelming' };
 
+    // Per-FSA dot color is driven by that FSA's count, using the same buckets
+    // colorFor() uses for the map grid. Keeps visual semantics consistent.
+    function colorForCount(n) {
+        if (!n) return HEAT_RAMP[0];
+        if (n <= 2)  return HEAT_RAMP[1];
+        if (n <= 5)  return HEAT_RAMP[2];
+        if (n <= 10) return HEAT_RAMP[3];
+        if (n <= 20) return HEAT_RAMP[4];
+        if (n <= 40) return HEAT_RAMP[5];
+        if (n <= 80) return HEAT_RAMP[6];
+        return HEAT_RAMP[7];
+    }
+
     function updateMoodLabel(mood) {
+        const shell = document.querySelector('.raccoon-shell');
+        if (shell) shell.dataset.mood = String(mood);
         const el = document.getElementById('moodLabel');
         if (el) el.textContent = MOOD_WORDS[mood] || 'Mood meter';
     }
@@ -369,11 +386,15 @@
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3);
         if (!ranked.length) {
-            el.innerHTML = 'No smelly areas in the last 24h.';
+            el.innerHTML = '<span class="area-prefix">Last 24h</span><span class="area-pill"><span class="area-dot" style="--c:'
+                + HEAT_RAMP[0] + '"></span>No smelly areas</span>';
             return;
         }
-        const parts = ranked.map(([fsa, n]) => `<strong>${escapeHtml(fsa)}</strong> (${n})`);
-        el.innerHTML = `Smelly now · ${parts.join('<span class="area-sep">·</span>')}`;
+        const pills = ranked.map(([fsa, n]) =>
+            `<span class="area-pill"><span class="area-dot" style="--c:${colorForCount(n)}"></span>`
+            + `${escapeHtml(fsa)}<span class="area-count">${n}</span></span>`
+        );
+        el.innerHTML = '<span class="area-prefix">Smelly now</span>' + pills.join('');
     }
 
     // Pulls the 24h heatmap counts to drive the mood-areas readout. Independent

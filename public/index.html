@@ -37,12 +37,14 @@
     <main class="app">
         <section class="hero">
             <div class="raccoon-wrap">
-                <div class="raccoon-card" id="raccoonCard" aria-live="polite">
-                    <!-- raccoon SVG injected by raccoon.js -->
-                </div>
-                <div class="raccoon-stamp">
-                    <span id="moodLabel" aria-live="polite">Mood meter</span>
-                    <span class="live"><span class="live-dot" style="background:#FFB347"></span>&nbsp;live</span>
+                <div class="raccoon-shell">
+                    <div class="raccoon-card" id="raccoonCard" aria-live="polite">
+                        <!-- raccoon SVG injected by raccoon.js -->
+                    </div>
+                    <div class="raccoon-stamp" id="raccoonStamp">
+                        <span class="stamp-mood"><span class="mood-dot" aria-hidden="true"></span><span id="moodLabel" aria-live="polite">Mood meter</span></span>
+                        <span class="live"><span class="live-dot" style="background:#FFB347"></span>&nbsp;live</span>
+                    </div>
                 </div>
                 <div class="raccoon-areas" id="moodAreas" aria-live="polite"></div>
             </div>

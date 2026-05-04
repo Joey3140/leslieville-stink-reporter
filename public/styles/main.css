@@ -259,6 +259,46 @@ section { padding: 32px 48px; }
 }
 .window-toggle button.active { background: var(--ink); color: var(--bg); }
 
+.map-toggles { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.wind-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border: 0; border-radius: 8px;
+    background: rgba(27, 27, 27, 0.06); color: var(--ink-65);
+    font-family: var(--mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    cursor: pointer; line-height: 1;
+}
+.wind-toggle.active { background: var(--ink); color: var(--bg); }
+
+/* Wind-field cells — many copies clipped to the 7 FSA polygons, all rotating
+   together via --wind-rot (set on documentElement when /api/weather/current
+   returns new data). */
+:root { --wind-rot: 90deg; }
+.wind-cell {
+    position: relative;
+    width: 0; height: 0;
+    transform: rotate(var(--wind-rot));
+    transform-origin: 0 0;
+    pointer-events: none;
+    transition: transform 0.6s ease;
+}
+.wind-cell svg {
+    position: absolute;
+    left: calc(-1 * var(--ax, 16px));
+    top: calc(-1 * var(--ay, 5px));
+    overflow: visible;
+}
+.wind-cell path {
+    animation: wind-arrow-flow 3.2s linear infinite;
+    filter: drop-shadow(0 0 1px rgba(218,41,28,0.25));
+}
+@keyframes wind-arrow-flow {
+    0%   { opacity: 0;    transform: translateX(-14px); }
+    18%  { opacity: 0.75; }
+    82%  { opacity: 0.75; }
+    100% { opacity: 0;    transform: translateX(22px); }
+}
+
 .map-frame {
     position: relative;
     border: 1px solid rgba(27, 27, 27, 0.1);

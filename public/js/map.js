@@ -6,9 +6,17 @@
     // v1.3: tightened to a 7-FSA cluster around Leslieville. M4M+M4L+M4E in the middle,
     // M4J north, M4K west, M5A south-west, M1N (Scarborough) east. Mode B rendering:
     // dashed FSA outlines + 200m grid overlay + dot layer.
+    // v1.5: zoom + pan locked to the Toronto-area; wind field overlay added.
     const KEPT_FSAS = ['M4M', 'M4L', 'M4E', 'M4J', 'M4K', 'M5A', 'M1N'];
     const MAP_BOUNDS = L.latLngBounds([43.640, -79.380], [43.715, -79.235]);
-    const map = L.map('map', { zoomControl: true, scrollWheelZoom: false, attributionControl: true });
+    // Toronto-area pan envelope. minZoom 11 keeps the user within Toronto + close
+    // suburbs even at maximum zoom-out — broader context without GTA-wide scroll.
+    const PAN_BOUNDS = L.latLngBounds([43.40, -79.85], [43.95, -78.85]);
+    const map = L.map('map', {
+        zoomControl: true, scrollWheelZoom: false, attributionControl: true,
+        minZoom: 11, maxZoom: 17,
+        maxBounds: PAN_BOUNDS, maxBoundsViscosity: 1.0,
+    });
     map.fitBounds(MAP_BOUNDS, { padding: [10, 10] });
 
     // CARTO Positron is the cleanest match for the design's flat off-white aesthetic.
@@ -35,6 +43,9 @@
     let fsaLayer = null;
     let gridLayer = null;
     const dotLayer = L.layerGroup().addTo(map);
+    const windFieldLayer = L.layerGroup();
+    let windFieldBuilt = false;
+    let windFieldVisible = true;        // toggle starts ON; persisted in localStorage below
     let activeWindow = '24h';
     let geojsonCache = null;
 
@@ -56,6 +67,36 @@
         let sx = 0, sy = 0;
         ring.forEach(([x, y]) => { sx += x; sy += y; });
         return [sy / ring.length, sx / ring.length];   // [lat, lng]
+    }
+
+    // ── Point-in-polygon helpers (used by the wind-field clipping) ────────
+    function pointInRing(lng, lat, ring) {
+        let inside = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const [xi, yi] = ring[i];
+            const [xj, yj] = ring[j];
+            const hit = ((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi || 1e-12) + xi);
+            if (hit) inside = !inside;
+        }
+        return inside;
+    }
+    function pointInGeometry(lng, lat, geom) {
+        if (geom.type === 'Polygon') {
+            const [outer, ...holes] = geom.coordinates;
+            if (!pointInRing(lng, lat, outer)) return false;
+            return !holes.some((h) => pointInRing(lng, lat, h));
+        }
+        if (geom.type === 'MultiPolygon') {
+            return geom.coordinates.some(([outer, ...holes]) => {
+                if (!pointInRing(lng, lat, outer)) return false;
+                return !holes.some((h) => pointInRing(lng, lat, h));
+            });
+        }
+        return false;
+    }
+    function pointInAnyFsa(lng, lat, features) {
+        for (const f of features) if (pointInGeometry(lng, lat, f.geometry)) return true;
+        return false;
     }
 
     function renderLegend() {
@@ -154,6 +195,68 @@
         } catch (err) {
             console.error('grid failed', err);
         }
+    }
+
+    // ── Wind field overlay ────────────────────────────────────────────────
+    // A grid of small arrows clipped to the 7 tracked FSA polygons. Density and
+    // arrow size scale with viewport so the field reads cleanly on phones too.
+    // Direction is driven by a CSS variable (--wind-rot) updated whenever
+    // /api/weather/current returns new data.
+    function buildWindField(geojson) {
+        if (windFieldBuilt) return;
+        windFieldBuilt = true;
+        const isMobile = window.matchMedia('(max-width: 720px)').matches;
+        const ROWS = isMobile ? 7 : 12;
+        const COLS = isMobile ? 9 : 16;
+        const ARROW_W = isMobile ? 22 : 32;
+        const ARROW_H = isMobile ? 8 : 10;
+        const stemEnd = ARROW_W * 0.69;
+        const midY = ARROW_H / 2;
+        const stemY1 = midY - 1, stemY2 = midY + 1;
+        const headY1 = 1, headY2 = ARROW_H - 1;
+        const pathD = `M 0 ${stemY1} L ${stemEnd} ${stemY1} L ${stemEnd} ${headY1} L ${ARROW_W} ${midY} L ${stemEnd} ${headY2} L ${stemEnd} ${stemY2} L 0 ${stemY2} Z`;
+        const halfW = ARROW_W / 2, halfH = ARROW_H / 2;
+        const south = MAP_BOUNDS.getSouth(), north = MAP_BOUNDS.getNorth();
+        const west = MAP_BOUNDS.getWest(), east = MAP_BOUNDS.getEast();
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const lat = south + (r + 0.5) * (north - south) / ROWS;
+                const lng = west + (c + 0.5) * (east - west) / COLS;
+                if (!pointInAnyFsa(lng, lat, geojson.features)) continue;
+                const opacity = 0.55 + ((r + c) % 3) * 0.08;
+                const delay = ((r * 0.7 + c * 0.41) % 3.2).toFixed(2);
+                const html = `<div class="wind-cell" style="--ax:${halfW}px;--ay:${halfH}px">`
+                    + `<svg width="${ARROW_W}" height="${ARROW_H}" viewBox="0 0 ${ARROW_W} ${ARROW_H}">`
+                    + `<path d="${pathD}" fill="rgba(218,41,28,${opacity})" `
+                    +   `style="animation-delay: -${delay}s" /></svg></div>`;
+                L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'wind-cell-icon',
+                        html, iconSize: [0, 0], iconAnchor: [0, 0],
+                    }),
+                    interactive: false,
+                }).addTo(windFieldLayer);
+            }
+        }
+    }
+
+    function applyWindRotation(deg) {
+        // OWM "wind from" angle → smell goes opposite + adjust for SVG up-is-down +
+        // local +X = east baseline → rot = (windFrom + 180) - 90 = windFrom + 90.
+        const rot = (deg + 90) % 360;
+        document.documentElement.style.setProperty('--wind-rot', `${rot}deg`);
+    }
+
+    function setWindFieldVisible(on) {
+        windFieldVisible = on;
+        if (on) windFieldLayer.addTo(map);
+        else windFieldLayer.remove();
+        const btn = document.getElementById('windToggle');
+        if (btn) {
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+        try { localStorage.setItem('lsv_wind_visible', on ? '1' : '0'); } catch (_e) { /* private mode */ }
     }
 
     async function refreshDots() {
@@ -376,6 +479,8 @@
             // smell blows over the neighbourhood.
             const arrowDeg = (dir + 180) % 360;
             const goingTo = oppositeCardinal(dir);
+            // Drive the page-wide wind-field arrows from the same data source.
+            applyWindRotation(dir);
             const observedAt = w.observedAt ? new Date(w.observedAt) : null;
             const ago = observedAt ? formatTimeAgo(observedAt.toISOString()) : '';
             el.innerHTML = `
@@ -407,11 +512,25 @@
         });
     });
 
+    // Wind toggle button — restores prior state from localStorage on load.
+    function wireWindToggle() {
+        const btn = document.getElementById('windToggle');
+        if (!btn) return;
+        let stored;
+        try { stored = localStorage.getItem('lsv_wind_visible'); } catch (_e) { stored = null; }
+        const initialOn = stored === null ? true : stored === '1';
+        setWindFieldVisible(initialOn);
+        btn.addEventListener('click', () => setWindFieldVisible(!windFieldVisible));
+    }
+
     // Boot
     (async function init() {
         renderLegend();
         addAshbridgesMarker();
         const gj = await loadGeojson();
+        // Build the wind-field grid once; visibility is controlled by the toggle.
+        buildWindField(gj);
+        wireWindToggle();
         // Render an initial mood-2 raccoon so the hero isn't empty while stats load.
         renderRaccoon(document.getElementById('raccoonCard'), 2);
         renderLakeWave(document.getElementById('lakeWave'), 1);

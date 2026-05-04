@@ -83,11 +83,16 @@
             <div>
                 <div class="map-header">
                     <h2 class="section-h">The map</h2>
-                    <div class="window-toggle" role="tablist" aria-label="Time window">
-                        <button data-window="24h" class="active" role="tab" aria-selected="true">24h</button>
-                        <button data-window="7d"  role="tab">7d</button>
-                        <button data-window="30d" role="tab">30d</button>
-                        <button data-window="all" role="tab">all</button>
+                    <div class="map-toggles">
+                        <div class="window-toggle" role="tablist" aria-label="Time window">
+                            <button data-window="24h" class="active" role="tab" aria-selected="true">24h</button>
+                            <button data-window="7d"  role="tab">7d</button>
+                            <button data-window="30d" role="tab">30d</button>
+                            <button data-window="all" role="tab">all</button>
+                        </div>
+                        <button id="windToggle" class="wind-toggle active" type="button" aria-pressed="true" aria-label="Toggle wind overlay">
+                            <span aria-hidden="true">🌬</span> Wind
+                        </button>
                     </div>
                 </div>
                 <div class="map-frame">

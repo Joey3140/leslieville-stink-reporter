@@ -534,10 +534,9 @@
         // Build the wind-field grid once; visibility is controlled by the toggle.
         buildWindField(gj);
         wireWindToggle();
-        // Render an initial mood-2 raccoon so the hero isn't empty while stats load.
-        renderRaccoon(document.getElementById('raccoonCard'), 2);
-        renderLakeWave(document.getElementById('lakeWave'), 1);
-        autoBlinkRaccoon(document.getElementById('raccoonCard'));
+        // Hold off on rendering the raccoon + lake wave until refreshStats has the
+        // real mood. A placeholder mood here flashes the wrong status for ~1s
+        // before being overwritten — empty card + aspect-ratio CSS keeps layout.
         await Promise.all([
             refreshFsaOutlines(gj),
             refreshGrid(),
@@ -547,6 +546,7 @@
             refreshTicker(),
             refreshWeather(),
         ]);
+        autoBlinkRaccoon(document.getElementById('raccoonCard'));
         setInterval(async () => {
             await Promise.all([
                 refreshFsaOutlines(gj),

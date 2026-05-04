@@ -1,4 +1,5 @@
 const { createChild } = require('../utils/logger');
+const { hmacIp, getClientIp } = require('../utils/hash');
 
 const log = createChild('cron-auth');
 
@@ -14,7 +15,8 @@ function cronAuth(req, res, next) {
     const auth = req.headers.authorization || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
     if (token !== expected) {
-        log.warn({ path: req.path, ip: req.ip }, 'cron auth rejected');
+        // Hash the IP before logging — preserves the public "no raw IP" promise.
+        log.warn({ path: req.path, ipHashShort: hmacIp(getClientIp(req)).slice(0, 8) }, 'cron auth rejected');
         return res.status(401).json({ error: 'Unauthorized' });
     }
     next();

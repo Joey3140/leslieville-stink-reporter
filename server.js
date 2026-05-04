@@ -17,6 +17,15 @@ process.on('uncaughtException', (err) => {
     process.exit(1);
 });
 
+// PUBLIC_BASE_URL drives every URL embedded in outgoing emails and confirm/unsubscribe
+// pages. Without it, routes would have to fall back to req.get('host'), which is
+// attacker-controllable via the Host header. Refuse to start rather than serve
+// host-header-injectable links in production.
+if (process.env.NODE_ENV === 'production' && !process.env.PUBLIC_BASE_URL) {
+    log.fatal('PUBLIC_BASE_URL must be set in production — refusing to start.');
+    process.exit(1);
+}
+
 // Lenient parse: tolerates trailing whitespace, newlines, or stray characters that
 // commonly appear when pasting a long JSON blob into a hosting provider's env-var UI.
 // Walks the string once, returns the first balanced top-level object.
@@ -91,10 +100,16 @@ app.use(helmet({
 
 app.use(cors({ origin: true, credentials: false }));
 app.use(express.json({ limit: '128kb' }));
+// Tight 8kb cap for form posts — only used by the confirm/unsubscribe HTML pages,
+// which submit a single token field. Prevents a misuse vector while keeping the
+// browser-form-post flow working.
+app.use(express.urlencoded({ extended: false, limit: '8kb' }));
 app.use(cookieParser());
 
 app.use((req, res, next) => {
-    log.debug({ method: req.method, path: req.path, ip: req.ip }, 'request');
+    // No raw IP — debug-level only emits in dev, but keep the privacy promise honest
+    // by never putting req.ip into a log record at any level.
+    log.debug({ method: req.method, path: req.path }, 'request');
     next();
 });
 

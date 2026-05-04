@@ -7,6 +7,7 @@ const { turnstileMiddleware } = require('../middleware/turnstile');
 const { send } = require('../utils/email');
 const { asyncHandler } = require('../utils/async-handler');
 const { createChild } = require('../utils/logger');
+const { getBaseUrl } = require('../utils/base-url');
 const { z } = require('zod');
 
 const router = express.Router();
@@ -26,7 +27,7 @@ router.post('/',
     asyncHandler(async (req, res) => {
         const db = requireDb();
         const { email, fsas, thresholdSeverity } = req.validated;
-        const baseUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '') || `${req.protocol}://${req.get('host')}`;
+        const baseUrl = getBaseUrl(req);
 
         const emailHash = hashEmail(email);
         const subsRef = db.collection(COLLECTIONS.subscribers);
@@ -37,18 +38,32 @@ router.post('/',
         const now = new Date();
 
         if (!existing.empty) {
-            // Re-subscribe / update preferences. Keep same unsubscribeToken to maintain link continuity.
+            // Existing record. Behaviour depends on current status:
+            //  - active: stash the new prefs as `pending*` fields and require a confirm
+            //    click before applying. Prevents an attacker who knows the email from
+            //    silently changing fsas/threshold without ever clicking through.
+            //  - pending or unsubscribed: overwrite directly — no harm yet (the user
+            //    hasn't confirmed), and overwriting "unsubscribed" lets them re-subscribe.
             const doc = existing.docs[0];
             docRef = doc.ref;
             const data = doc.data();
             unsubscribeToken = data.unsubscribeToken || randomToken(32);
-            await docRef.update({
-                fsas,
-                thresholdSeverity,
-                unsubscribeToken,
-                status: data.status === 'active' ? 'active' : 'pending',
-                updatedAt: now,
-            });
+            if (data.status === 'active') {
+                await docRef.update({
+                    unsubscribeToken,
+                    pendingFsas: fsas,
+                    pendingThresholdSeverity: thresholdSeverity,
+                    updatedAt: now,
+                });
+            } else {
+                await docRef.update({
+                    fsas,
+                    thresholdSeverity,
+                    unsubscribeToken,
+                    status: 'pending',
+                    updatedAt: now,
+                });
+            }
         } else {
             unsubscribeToken = randomToken(32);
             docRef = await subsRef.add({
@@ -87,6 +102,9 @@ router.post('/',
     })
 );
 
+// GET /confirm — render a confirmation page with a POST button. Does NOT confirm
+// on its own. This protects against email-scanner pre-fetch (Gmail Safe Links,
+// Outlook Defender) silently activating subscriptions before the user clicks.
 router.get('/confirm',
     validateQuery(z.object({ token: z.string().min(16).max(128) })),
     asyncHandler(async (req, res) => {
@@ -97,55 +115,133 @@ router.get('/confirm',
         if (snap.empty) {
             return res.status(404).send(htmlPage('Link expired or invalid', 'This confirmation link has already been used or has expired. <a href="/subscribe">Subscribe again</a>.'));
         }
+        res.send(htmlActionPage({
+            title: 'Confirm your alert subscription',
+            message: 'Click the button below to activate your subscription. You can unsubscribe any time with one click from any alert email.',
+            actionPath: '/api/subscribers/confirm',
+            token,
+            buttonLabel: 'Confirm subscription',
+        }));
+    })
+);
+
+// POST /confirm — actually flips status to active and applies any pending
+// preference changes stashed by the subscribe handler.
+router.post('/confirm',
+    validate(z.object({ token: z.string().min(16).max(128) })),
+    asyncHandler(async (req, res) => {
+        const db = requireDb();
+        const { token } = req.validated;
+        const snap = await db.collection(COLLECTIONS.subscribers)
+            .where('confirmToken', '==', token).limit(1).get();
+        if (snap.empty) {
+            return res.status(404).send(htmlPage('Link expired or invalid', 'This confirmation link has already been used or has expired. <a href="/subscribe">Subscribe again</a>.'));
+        }
         const doc = snap.docs[0];
-        await doc.ref.update({
+        const data = doc.data();
+        const updates = {
             status: 'active',
             confirmedAt: new Date(),
             confirmToken: FieldValue.delete(),
-        });
-        log.info({ id: doc.id }, 'subscriber confirmed');
+        };
+        // Apply any stashed preference changes (set when an already-active subscriber
+        // re-submitted the subscribe form with new fsas/threshold).
+        if (data.pendingFsas) {
+            updates.fsas = data.pendingFsas;
+            updates.pendingFsas = FieldValue.delete();
+        }
+        if (data.pendingThresholdSeverity != null) {
+            updates.thresholdSeverity = data.pendingThresholdSeverity;
+            updates.pendingThresholdSeverity = FieldValue.delete();
+        }
+        await doc.ref.update(updates);
+        log.info({ id: doc.id, appliedPending: !!data.pendingFsas }, 'subscriber confirmed');
         res.send(htmlPage("You're subscribed", "We'll email you when your watched areas cross a complaint threshold. <a href=\"/\">Back to the map</a>."));
     })
 );
 
-// Both POST (form) and GET (one-click email link) work for unsubscribe.
-async function handleUnsubscribe(token) {
-    const db = requireDb();
-    const snap = await db.collection(COLLECTIONS.subscribers)
-        .where('unsubscribeToken', '==', token).limit(1).get();
-    if (snap.empty) return null;
-    const doc = snap.docs[0];
-    await doc.ref.update({ status: 'unsubscribed', unsubscribedAt: new Date() });
-    return doc.data();
-}
-
+// GET /unsubscribe — render a confirmation page. Email-scanner pre-fetch lands
+// here without unsubscribing. Click → POST /unsubscribe to actually act.
 router.get('/unsubscribe',
     validateQuery(z.object({ token: z.string().min(16).max(128) })),
     asyncHandler(async (req, res) => {
-        const data = await handleUnsubscribe(req.validatedQuery.token);
-        if (!data) {
-            return res.status(404).send(htmlPage('Link expired', 'This unsubscribe link is no longer valid. If you still want off the list, <a href="/subscribe">contact us via the subscribe page</a>.'));
+        const db = requireDb();
+        const { token } = req.validatedQuery;
+        const snap = await db.collection(COLLECTIONS.subscribers)
+            .where('unsubscribeToken', '==', token).limit(1).get();
+        if (snap.empty) {
+            return res.status(404).send(htmlPage('Link expired', 'This unsubscribe link is no longer valid. If you still want off the list, <a href="/subscribe">re-subscribe and unsubscribe from there</a>.'));
         }
-        log.info('subscriber unsubscribed (GET)');
-        res.send(htmlPage("You're unsubscribed", "We won't email you again. <a href=\"/\">Back to the map</a>."));
+        res.send(htmlActionPage({
+            title: 'Unsubscribe from alerts',
+            message: "Click the button below to confirm. You won't receive any more emails from this site.",
+            actionPath: '/api/subscribers/unsubscribe',
+            token,
+            buttonLabel: 'Unsubscribe',
+            buttonStyle: 'destructive',
+        }));
     })
 );
 
+// POST /unsubscribe — accepts both URL-encoded form posts (from the GET page above)
+// and JSON API posts (from any future programmatic client). Detects on Content-Type.
 router.post('/unsubscribe',
     validate(z.object({ token: z.string().min(16).max(128) })),
     asyncHandler(async (req, res) => {
-        const data = await handleUnsubscribe(req.validated.token);
-        if (!data) return res.status(404).json({ error: 'Invalid token' });
-        log.info('subscriber unsubscribed (POST)');
+        const db = requireDb();
+        const { token } = req.validated;
+        const isFormPost = (req.headers['content-type'] || '').includes('application/x-www-form-urlencoded');
+
+        const snap = await db.collection(COLLECTIONS.subscribers)
+            .where('unsubscribeToken', '==', token).limit(1).get();
+        if (snap.empty) {
+            if (isFormPost) {
+                return res.status(404).send(htmlPage('Link expired', 'This unsubscribe link is no longer valid.'));
+            }
+            return res.status(404).json({ error: 'Invalid token' });
+        }
+        const doc = snap.docs[0];
+        await doc.ref.update({
+            status: 'unsubscribed',
+            unsubscribedAt: new Date(),
+            // Single-use: invalidate the token so a replay (e.g. scanner re-fetch)
+            // gets a clean 404 rather than another no-op write.
+            unsubscribeToken: FieldValue.delete(),
+        });
+        log.info({ id: doc.id, source: isFormPost ? 'form' : 'json' }, 'subscriber unsubscribed');
+        if (isFormPost) {
+            return res.send(htmlPage("You're unsubscribed", "We won't email you again. <a href=\"/\">Back to the map</a>."));
+        }
         res.json({ ok: true });
     })
 );
 
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// htmlPage: status pages. `message` is trusted server-supplied HTML (may contain links),
+// title is escaped defensively.
 function htmlPage(title, message) {
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${title} — Leslieville Stink Reporter</title>` +
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(title)} — Leslieville Stink Reporter</title>` +
         `<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/styles/main.css"></head>` +
         `<body><header class="masthead"><div class="brand"><a href="/"><strong>Leslieville Stink Reporter</strong></a></div></header>` +
-        `<main class="prose"><h1>${title}</h1><p>${message}</p></main></body></html>`;
+        `<main class="prose"><h1>${escapeHtml(title)}</h1><p>${message}</p></main></body></html>`;
+}
+
+// htmlActionPage: confirmation pages with a POST form. Both title and message are
+// escaped, and the token is escaped before embedding (defense-in-depth — schema
+// already constrains it to 16-128 chars matching the validator).
+function htmlActionPage({ title, message, actionPath, token, buttonLabel, buttonStyle = 'primary' }) {
+    const buttonBg = buttonStyle === 'destructive' ? '#DA291C' : '#1B1B1B';
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(title)} — Leslieville Stink Reporter</title>` +
+        `<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/styles/main.css"></head>` +
+        `<body><header class="masthead"><div class="brand"><a href="/"><strong>Leslieville Stink Reporter</strong></a></div></header>` +
+        `<main class="prose"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p>` +
+        `<form method="POST" action="${escapeHtml(actionPath)}" style="margin-top:24px">` +
+        `<input type="hidden" name="token" value="${escapeHtml(token)}">` +
+        `<button type="submit" style="background:${buttonBg};color:#FAF7F2;border:0;padding:12px 24px;border-radius:8px;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer">${escapeHtml(buttonLabel)}</button>` +
+        `</form></main></body></html>`;
 }
 
 module.exports = router;

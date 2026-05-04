@@ -4,6 +4,7 @@ const { sendBatch } = require('../utils/email');
 const { cronAuth } = require('../middleware/cron-auth');
 const { asyncHandler } = require('../utils/async-handler');
 const { createChild } = require('../utils/logger');
+const { getBaseUrl } = require('../utils/base-url');
 
 const router = express.Router();
 const log = createChild('routes.alerts');
@@ -21,7 +22,7 @@ function severityLabel(avg) {
 
 router.post('/alert-check', cronAuth, asyncHandler(async (req, res) => {
     const db = requireDb();
-    const baseUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '') || `${req.protocol}://${req.get('host')}`;
+    const baseUrl = getBaseUrl(req);
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const cooldownCutoff = new Date(now.getTime() - COOLDOWN_HOURS * 60 * 60 * 1000);

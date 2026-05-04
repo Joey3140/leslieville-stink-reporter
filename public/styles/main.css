@@ -41,6 +41,11 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+/* Prevent horizontal scroll from any decorative overflow (h1 text-shadow,
+   skewed <em> pills, etc.). overflow-x: clip is preferred over hidden — it
+   doesn't create a new scrolling container, so position: sticky children
+   keep working. */
+html, body { overflow-x: clip; }
 body {
     background: var(--bg);
     color: var(--ink);

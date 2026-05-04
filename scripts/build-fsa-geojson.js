@@ -14,7 +14,9 @@ const fs = require('fs');
 const path = require('path');
 const proj4 = require('proj4');
 
-const ALLOWED_FSAS = ['M4L', 'M4M', 'M4J', 'M4K', 'M4E', 'M4N', 'M4W', 'M5A', 'M4X', 'M4Y', 'M4S', 'M5N'];
+// M1N (Cliffside/Birchcliff) is the first Scarborough FSA east of M4E (Beaches),
+// added in v1.3 to extend the visible map one step east.
+const ALLOWED_FSAS = ['M4L', 'M4M', 'M4J', 'M4K', 'M4E', 'M4N', 'M4W', 'M5A', 'M4X', 'M4Y', 'M4S', 'M5N', 'M1N'];
 
 // EPSG:3347 — Statistics Canada Lambert
 const SRC_PROJ = '+proj=lcc +lat_1=49 +lat_2=77 +lat_0=63.390675 +lon_0=-91.86666666666667 +x_0=6200000 +y_0=3000000 +ellps=GRS80 +units=m +no_defs +type=crs';

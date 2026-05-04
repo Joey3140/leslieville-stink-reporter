@@ -104,6 +104,10 @@
     });
 
     // FSA auto-detect via geolocation
+    // KEPT_FSAS mirrors the 7 visible on the dashboard; auto-detect only assigns one of these
+    // so the value always matches an option in the dropdown. If the user is outside, we ask
+    // them to pick the closest manually.
+    const KEPT_FSAS = ['M4M', 'M4L', 'M4E', 'M4J', 'M4K', 'M5A', 'M1N'];
     let geojsonCache = null;
     async function guessFsaFromLatLng(lat, lng) {
         if (!geojsonCache) {
@@ -111,6 +115,7 @@
             geojsonCache = await r.json();
         }
         for (const f of geojsonCache.features) {
+            if (!KEPT_FSAS.includes(f.properties.CFSAUID)) continue;
             if (pointInGeometry(lng, lat, f.geometry)) return f.properties.CFSAUID;
         }
         return null;

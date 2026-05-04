@@ -3,9 +3,13 @@
     const { renderRaccoon, severityToMood, autoBlinkRaccoon, renderLakeWave } = window.LSV;
 
     // ── Map setup ──────────────────────────────────────────────────────────
-    // Centred over the Leslieville-Beaches axis; fits ~12 FSAs at zoom 12.
-    const map = L.map('map', { zoomControl: true, scrollWheelZoom: false, attributionControl: true })
-        .setView([43.668, -79.330], 12);
+    // v1.3: tightened to a 7-FSA cluster around Leslieville. M4M+M4L+M4E in the middle,
+    // M4J north, M4K west, M5A south-west, M1N (Scarborough) east. Mode B rendering:
+    // dashed FSA outlines + 200m grid overlay + dot layer.
+    const KEPT_FSAS = ['M4M', 'M4L', 'M4E', 'M4J', 'M4K', 'M5A', 'M1N'];
+    const MAP_BOUNDS = L.latLngBounds([43.640, -79.380], [43.715, -79.235]);
+    const map = L.map('map', { zoomControl: true, scrollWheelZoom: false, attributionControl: true });
+    map.fitBounds(MAP_BOUNDS, { padding: [10, 10] });
 
     // CARTO Positron is the cleanest match for the design's flat off-white aesthetic.
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -29,6 +33,7 @@
     }
 
     let fsaLayer = null;
+    let gridLayer = null;
     const dotLayer = L.layerGroup().addTo(map);
     let activeWindow = '24h';
     let geojsonCache = null;
@@ -36,61 +41,118 @@
     async function loadGeojson() {
         if (geojsonCache) return geojsonCache;
         const r = await fetch('/data/fsa-leslieville.geojson');
-        geojsonCache = await r.json();
+        const all = await r.json();
+        // Filter to the 7 FSAs we render at this zoom. The server-side allow-list still
+        // accepts the full 13 (backward-compat with anyone bookmarking the old form).
+        geojsonCache = {
+            type: 'FeatureCollection',
+            features: (all.features || []).filter((f) => KEPT_FSAS.includes(f.properties.CFSAUID)),
+        };
         return geojsonCache;
     }
 
+    function fsaCentroid(geom) {
+        const ring = geom.type === 'Polygon' ? geom.coordinates[0] : geom.coordinates[0][0];
+        let sx = 0, sy = 0;
+        ring.forEach(([x, y]) => { sx += x; sy += y; });
+        return [sy / ring.length, sx / ring.length];   // [lat, lng]
+    }
+
     function renderLegend() {
-        const buckets = ['0', '1–2', '3–5', '6–10', '11–20', '21–40', '41–80', '80+'];
         const el = document.getElementById('mapLegend');
         const swatches = HEAT_RAMP.map((c) => `<span style="background:${c}"></span>`).join('');
-        el.innerHTML = `<span>Fewer</span><span class="legend-bar">${swatches}</span><span>More</span>`;
+        el.innerHTML = `<span>Fewer</span><span class="legend-bar">${swatches}</span><span>More</span><span class="legend-sep">200m cells</span>`;
     }
 
-    function styleForFeature(counts) {
-        return (feature) => {
-            const fsa = feature.properties.CFSAUID;
-            const c = counts[fsa] || 0;
-            return {
-                fillColor: colorFor(c),
-                fillOpacity: 0.72,
-                weight: 0.8,
-                color: '#1B1B1B',
-                opacity: 0.4,
-            };
-        };
-    }
-
-    function setupTooltipBehavior(feature, layer, count) {
+    function setupFsaTooltip(feature, layer, count) {
         const fsa = feature.properties.CFSAUID;
         const tip = document.getElementById('fsaTooltip');
         const showTip = () => {
             tip.innerHTML = `<strong>${escapeHtml(fsa)}</strong><div class="sub">${count} report${count === 1 ? '' : 's'} · ${escapeHtml(activeWindow)}</div>`;
             tip.classList.add('show');
-            layer.setStyle({ weight: 2, opacity: 1 });
+            layer.setStyle({ weight: 2.5, opacity: 0.85, dashArray: null });
         };
         const hideTip = () => {
             tip.classList.remove('show');
-            layer.setStyle({ weight: 0.8, opacity: 0.4 });
+            layer.setStyle({ weight: 1.5, opacity: 0.55, dashArray: '6 4' });
         };
         layer.on('mouseover', showTip);
         layer.on('mouseout', hideTip);
         layer.on('click', showTip);
     }
 
-    async function refreshHeatmap(geojson) {
+    // FSA polygons are dashed outlines only — granular density is carried by the grid
+    // overlay below. The /api/reports/heatmap counts still drive the hover tooltip so a
+    // user can see the aggregate per FSA.
+    async function refreshFsaOutlines(geojson) {
         try {
             const { counts } = await getJson(`/api/reports/heatmap?window=${activeWindow}`);
             if (fsaLayer) fsaLayer.remove();
             fsaLayer = L.geoJSON(geojson, {
-                style: styleForFeature(counts),
+                style: () => ({
+                    fillColor: '#1B1B1B', fillOpacity: 0.02,
+                    weight: 1.5, color: '#1B1B1B', opacity: 0.55,
+                    dashArray: '6 4',
+                }),
                 onEachFeature: (feature, layer) => {
-                    const fsa = feature.properties.CFSAUID;
-                    setupTooltipBehavior(feature, layer, counts[fsa] || 0);
+                    setupFsaTooltip(feature, layer, counts[feature.properties.CFSAUID] || 0);
                 },
             }).addTo(map);
+            // Static FSA labels at each polygon's approximate centroid.
+            geojson.features.forEach((f) => {
+                const center = fsaCentroid(f.geometry);
+                L.marker(center, {
+                    icon: L.divIcon({
+                        className: 'fsa-label',
+                        html: `<span class="fsa-label-pill">${f.properties.CFSAUID}</span>`,
+                        iconSize: [44, 18], iconAnchor: [22, 9],
+                    }),
+                    interactive: false,
+                }).addTo(fsaLayer);
+            });
         } catch (err) {
-            console.error('heatmap failed', err);
+            console.error('fsa outlines failed', err);
+        }
+    }
+
+    // 200m grid overlay. Bins opt-in dot data into fixed cells covering MAP_BOUNDS.
+    // At ~43.66°N: 1° lat ≈ 111 km, 1° lng ≈ 80.7 km → 200m ≈ 0.0018° lat, 0.00248° lng.
+    // Severity-0 ("all clear") points are excluded so a flood of clears can't paint a cell red.
+    async function refreshGrid() {
+        if (gridLayer) { gridLayer.remove(); gridLayer = null; }
+        if (activeWindow !== '24h' && activeWindow !== '7d') return;   // dots endpoint only serves 24h/7d
+        try {
+            const { items } = await getJson(`/api/reports/dots?window=${activeWindow}`);
+            if (!items || !items.length) return;
+            const cellLat = 0.0018, cellLng = 0.00248;
+            const south = MAP_BOUNDS.getSouth(), west = MAP_BOUNDS.getWest();
+            const cells = new Map();
+            items.forEach((p) => {
+                if ((p.severity || 0) === 0) return;   // exclude all-clear from heat
+                if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return;
+                const r = Math.floor((p.lat - south) / cellLat);
+                const c = Math.floor((p.lng - west) / cellLng);
+                if (r < 0 || c < 0) return;
+                const k = `${r}_${c}`;
+                cells.set(k, (cells.get(k) || 0) + 1);
+            });
+            if (!cells.size) return;
+            gridLayer = L.layerGroup();
+            cells.forEach((count, key) => {
+                const [r, c] = key.split('_').map(Number);
+                const lat0 = south + r * cellLat;
+                const lng0 = west + c * cellLng;
+                L.rectangle([[lat0, lng0], [lat0 + cellLat, lng0 + cellLng]], {
+                    fillColor: colorFor(count),
+                    fillOpacity: 0.78,
+                    weight: 0.4,
+                    color: '#1B1B1B',
+                    opacity: 0.18,
+                }).bindTooltip(`${count} report${count === 1 ? '' : 's'} · 200m cell · ${activeWindow}`).addTo(gridLayer);
+            });
+            gridLayer.addTo(map);
+        } catch (err) {
+            console.error('grid failed', err);
         }
     }
 
@@ -341,7 +403,7 @@
             });
             activeWindow = btn.dataset.window;
             const gj = await loadGeojson();
-            await Promise.all([refreshHeatmap(gj), refreshDots()]);
+            await Promise.all([refreshFsaOutlines(gj), refreshGrid(), refreshDots()]);
         });
     });
 
@@ -355,7 +417,8 @@
         renderLakeWave(document.getElementById('lakeWave'), 1);
         autoBlinkRaccoon(document.getElementById('raccoonCard'));
         await Promise.all([
-            refreshHeatmap(gj),
+            refreshFsaOutlines(gj),
+            refreshGrid(),
             refreshDots(),
             refreshFeed(),
             refreshStats(),
@@ -364,7 +427,8 @@
         ]);
         setInterval(async () => {
             await Promise.all([
-                refreshHeatmap(gj),
+                refreshFsaOutlines(gj),
+                refreshGrid(),
                 refreshDots(),
                 refreshFeed(),
                 refreshStats(),

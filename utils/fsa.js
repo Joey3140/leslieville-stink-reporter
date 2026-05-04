@@ -4,7 +4,7 @@ const { createChild } = require('./logger');
 
 const log = createChild('fsa');
 
-const ALLOWED_FSAS = ['M4L', 'M4M', 'M4J', 'M4K', 'M4E', 'M4N', 'M4W', 'M5A', 'M4X', 'M4Y', 'M4S', 'M5N'];
+const ALLOWED_FSAS = ['M4L', 'M4M', 'M4J', 'M4K', 'M4E', 'M4N', 'M4W', 'M5A', 'M4X', 'M4Y', 'M4S', 'M5N', 'M1N'];
 const FSA_REGEX = /^M[0-9][A-Z]$/;
 
 let geojsonCache = null;

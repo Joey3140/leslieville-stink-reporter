@@ -329,9 +329,12 @@
         const badge = isClear
             ? `<span class="sev-badge sev-0"><span class="dot"></span>${sevLabel}</span>`
             : `<span class="sev-badge ${sevClass}"><span class="dot"></span>${sevLabel} · ${sev}</span>`;
+        // Reporter may have skipped the odour question — keep the row clean instead
+        // of rendering an empty <span class="odour-tag"></span>.
+        const odourSpan = odour ? `<span class="odour-tag">${odour}</span>` : '';
         const body = isClear
             ? `<span class="odour-tag odour-tag-clear">no smell reported</span>`
-            : `<span class="odour-tag">${odour}</span>${note}`;
+            : (odourSpan + note) || `<span class="odour-tag" style="opacity:0.55">type unspecified</span>`;
         return `
             <div class="feed-item">
                 <div class="feed-item-row">

@@ -179,9 +179,10 @@
     }
 
     function updateSubmitState() {
-        const odour = form.querySelector('input[name="odourType"]:checked');
+        // Severity + FSA are the only user-input requirements. Odour type, intersection,
+        // location, and description are all optional.
         const fsa = fsaSelect.value;
-        const ready = severity != null && !!odour && !!fsa && (turnstileToken || !turnstileSiteKey);
+        const ready = severity != null && !!fsa && (turnstileToken || !turnstileSiteKey);
         submitBtn.disabled = !ready;
     }
 
@@ -249,21 +250,20 @@
     form.addEventListener('submit', async (ev) => {
         ev.preventDefault();
         if (severity == null) { setStatus('Pick a severity.', 'error'); return; }
-        const odourEl = form.querySelector('input[name="odourType"]:checked');
-        if (!odourEl) { setStatus('Pick an odour type.', 'error'); return; }
         if (!fsaSelect.value) { setStatus('Pick your postal area.', 'error'); return; }
 
         const tok = getTurnstileToken();
         if (!tok) { setStatus('Please complete the captcha.', 'error'); return; }
 
+        const odourEl = form.querySelector('input[name="odourType"]:checked');
         const body = {
             fsa: fsaSelect.value,
             severity,
-            odourType: odourEl.value,
             description: description.value.trim() || undefined,
             clientId: getClientId(),
             turnstileToken: tok,
         };
+        if (odourEl) body.odourType = odourEl.value;
         if (intersectionSelect.value) {
             body.intersection = intersectionSelect.value;
         }

@@ -2,7 +2,29 @@
 
 Public, community-run odour reporting portal for residents near Toronto's Ashbridges Bay wastewater treatment plant. Submit reports in seconds; see live heatmap by Forward Sortation Area; subscribe to alerts when your area crosses a threshold.
 
+Live at **https://www.leslievillestench.com**.
+
 > Built in response to Coun. Paula Fletcher (Toronto-Danforth) noting that the city's existing 311 system isn't capturing the scale of the problem ("the Leslieville stench").
+
+---
+
+## Privacy claims, mapped to code
+
+The `/about` page makes specific privacy promises. Each one is enforced in code rather than in policy. If you don't trust the promise, read the line.
+
+| Claim on `/about` | Enforced in |
+|---|---|
+| "No name, no account, no login" | No auth middleware exists. There are no `users` or `accounts` collections. |
+| "No analytics or third-party trackers" | No GA / Mixpanel / Meta-pixel scripts in any HTML. CSP in [`server.js`](server.js#L73-L90) blocks third-party `script-src` except Cloudflare Turnstile and unpkg (Leaflet). |
+| "No raw IP — one-way HMAC hash with rotating secret" | [`utils/hash.js:hmacIp`](utils/hash.js) — HMAC-SHA256 with `IP_HASH_SECRET`, truncated to 32 chars. No reverse-mapping is possible without the secret. The secret can be rotated, invalidating all stored hashes. |
+| "No precise location unless you opt in" | [`routes/reports.js`](routes/reports.js) only stores `approxLat`/`approxLng` when both are explicitly provided in the request body. The form's `shareLocation` checkbox is unchecked by default. |
+| "Optional precise location is jittered ~100m, deterministically per-day" | [`utils/hash.js:deterministicJitter`](utils/hash.js) — HMAC-derived offset, same per `(ipHash, dayKey)` so volume can't reveal an address. |
+| "Reports auto-deleted after 30 days" | Firestore TTL on `reports.expiresAt` set in console (see [TTL section](#ttl-policies-required-for-privacy)). `expiresAt` is computed at write-time in [`routes/reports.js`](routes/reports.js). |
+| "Description is scanned for PII before going public" | [`routes/reports.js:flagPii`](routes/reports.js) — regex match for emails / phones / addresses. Hits route the report to `pending-review` status; `/api/reports/recent` only returns `status: 'active'`. |
+| "Severity 0 ('all clear') doesn't pollute the heatmap" | [`routes/reports.js`](routes/reports.js) `/heatmap` subtracts `bySeverity['0']` from each FSA's count; [`routes/alerts.js`](routes/alerts.js) filters `severity > 0` before averaging. |
+| "10 reports/hour/IP rate limit" | [`middleware/rate-limit.js`](middleware/rate-limit.js) — Firestore-backed sliding window keyed by HMAC of IP. |
+| "Same browser submitting twice in 30 min is silently de-duplicated" | [`routes/reports.js`](routes/reports.js) — composite query on `(clientId, ipHash)` against the last 30 min before any write. |
+| "Cron endpoints are not world-callable" | [`middleware/cron-auth.js`](middleware/cron-auth.js) — Bearer-token check against `CRON_SECRET`. Returns 401 + logs an HMAC of the source IP (never the raw IP) on rejection. |
 
 ---
 

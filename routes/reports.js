@@ -112,11 +112,12 @@ router.post('/',
             expiresAt,
             fsa,
             severity: data.severity,
-            odourType: data.odourType,
             ipHash,
             clientId: data.clientId,
             status,
         };
+        // odourType is optional — only stored when the reporter picked one.
+        if (data.odourType) report.odourType = data.odourType;
         if (data.description) report.description = data.description;
         if (data.intersection) report.intersection = data.intersection;
         if (data.approxLat != null) {
@@ -141,14 +142,19 @@ router.post('/',
                     // expand dotted keys into nested paths (only update() does), so writing
                     // `'bySeverity.0': increment(1)` would store a literal flat field name.
                     // Heatmap/stats readers depend on `d.bySeverity['0']` resolving to a number.
-                    tx.set(counterRef, {
+                    const counterUpdate = {
                         fsa,
                         date: dayKey(now),
                         count: FieldValue.increment(1),
                         bySeverity: { [String(data.severity)]: FieldValue.increment(1) },
-                        byType: { [data.odourType]: FieldValue.increment(1) },
                         updatedAt: now,
-                    }, { merge: true });
+                    };
+                    // Only bump byType when an odourType was given; an undefined key
+                    // would write a literal `byType.undefined` field.
+                    if (data.odourType) {
+                        counterUpdate.byType = { [data.odourType]: FieldValue.increment(1) };
+                    }
+                    tx.set(counterRef, counterUpdate, { merge: true });
                 }
             });
             log.info({ id: reportRef.id, fsa, severity: data.severity, status }, 'report submitted');

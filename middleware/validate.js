@@ -53,7 +53,7 @@ const schemas = {
     submitReport: z.object({
         fsa: fsaCode,
         severity: z.number().int().refine((v) => SEVERITY_VALUES.includes(v), { message: 'severity must be 0, 1, 3, or 5' }),
-        odourType: z.enum(ODOUR_TYPES),
+        odourType: z.enum(ODOUR_TYPES).optional(),
         description: z.string().trim().max(280, 'description must be 280 characters or fewer').optional(),
         intersection: z.string().refine((v) => isAllowedIntersection(v), {
             message: 'intersection must be one of the curated allow-list values',

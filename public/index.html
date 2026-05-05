@@ -95,9 +95,14 @@
                             <button data-extent="30d" role="tab">30d</button>
                             <button data-extent="all" role="tab">all</button>
                         </div>
-                        <button id="windToggle" class="wind-toggle active" type="button" aria-pressed="true" aria-label="Toggle wind overlay">
-                            <span aria-hidden="true">🌬</span> Wind
-                        </button>
+                        <div id="windToggle" class="wind-toggle" role="tablist" aria-label="Wind overlay">
+                            <button class="wind-opt active" type="button" data-wind="on" role="tab" aria-selected="true">
+                                <span aria-hidden="true">🌬</span> Wind on
+                            </button>
+                            <button class="wind-opt" type="button" data-wind="off" role="tab" aria-selected="false">
+                                Wind off
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="map-frame">
@@ -129,6 +134,7 @@
     <script src="/js/state.js"></script>
     <script src="/js/raccoon.js"></script>
     <script src="/js/lake-wave.js"></script>
+    <script src="/js/nav.js" defer></script>
     <script src="/js/map.js"></script>
     <script src="/js/timeline.js"></script>
 </body>

@@ -33,7 +33,7 @@ function dayKey(date) {
 
 const REPORT_RETENTION_DAYS = 30;
 
-const submitLimiter = createRateLimit({ max: 10, windowMs: 60 * 60 * 1000, bucket: 'submit', message: 'Too many reports from this IP, please try again later' });
+const submitLimiter = createRateLimit({ max: 3, windowMs: 60 * 60 * 1000, bucket: 'submit', message: 'You can send up to 3 reports per hour from one connection. Try again shortly.' });
 
 router.post('/',
     submitLimiter,

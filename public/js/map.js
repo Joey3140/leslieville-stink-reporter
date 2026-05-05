@@ -252,10 +252,13 @@
         windFieldVisible = on;
         if (on) windFieldLayer.addTo(map);
         else windFieldLayer.remove();
-        const btn = document.getElementById('windToggle');
-        if (btn) {
-            btn.classList.toggle('active', on);
-            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        const root = document.getElementById('windToggle');
+        if (root) {
+            root.querySelectorAll('button[data-wind]').forEach((b) => {
+                const active = (b.dataset.wind === 'on') === on;
+                b.classList.toggle('active', active);
+                b.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
         }
         try { localStorage.setItem('lsv_wind_visible', on ? '1' : '0'); } catch (_e) { /* private mode */ }
     }
@@ -359,22 +362,22 @@
         if (windFrozenForScrub) return;
         windFrozenForScrub = true;
         windFieldLayer.remove();
-        const btn = document.getElementById('windToggle');
-        if (btn) {
-            btn.classList.add('is-frozen');
-            btn.disabled = true;
-            btn.setAttribute('title', 'Wind data is current-only — hidden while scrubbed to past');
+        const root = document.getElementById('windToggle');
+        if (root) {
+            root.classList.add('is-frozen');
+            root.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+            root.setAttribute('title', 'Wind data is current-only — hidden while scrubbed to past');
         }
     }
     function thawWindForScrub() {
         if (!windFrozenForScrub) return;
         windFrozenForScrub = false;
         if (windFieldVisible) windFieldLayer.addTo(map);
-        const btn = document.getElementById('windToggle');
-        if (btn) {
-            btn.classList.remove('is-frozen');
-            btn.disabled = false;
-            btn.removeAttribute('title');
+        const root = document.getElementById('windToggle');
+        if (root) {
+            root.classList.remove('is-frozen');
+            root.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+            root.removeAttribute('title');
         }
     }
 
@@ -681,15 +684,20 @@
     // The .window-toggle now controls the timeline strip's track extent and
     // is wired up by timeline.js — map.js doesn't observe it directly anymore.
 
-    // Wind toggle button — restores prior state from localStorage on load.
+    // Wind toggle — restores prior state from localStorage on load.
     function wireWindToggle() {
-        const btn = document.getElementById('windToggle');
-        if (!btn) return;
+        const root = document.getElementById('windToggle');
+        if (!root) return;
         let stored;
         try { stored = localStorage.getItem('lsv_wind_visible'); } catch (_e) { stored = null; }
         const initialOn = stored === null ? true : stored === '1';
         setWindFieldVisible(initialOn);
-        btn.addEventListener('click', () => setWindFieldVisible(!windFieldVisible));
+        root.querySelectorAll('button[data-wind]').forEach((b) => {
+            b.addEventListener('click', () => {
+                if (windFrozenForScrub) return;
+                setWindFieldVisible(b.dataset.wind === 'on');
+            });
+        });
     }
 
     // Boot

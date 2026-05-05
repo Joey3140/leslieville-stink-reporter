@@ -53,7 +53,7 @@ function buildAnonRow({ createdAt, fsa, severity, odourType, intersection }) {
     return row;
 }
 
-const submitLimiter = createRateLimit({ max: 3, windowMs: 60 * 60 * 1000, bucket: 'submit', message: 'You can send up to 3 reports per hour from one connection. Try again shortly.' });
+const submitLimiter = createRateLimit({ max: 5, windowMs: 60 * 60 * 1000, bucket: 'submit', message: 'You can send up to 5 reports per hour from one connection. Try again shortly.' });
 
 router.post('/',
     submitLimiter,

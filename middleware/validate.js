@@ -94,7 +94,7 @@ const schemas = {
 
     exportQuery: z.object({
         format: z.enum(['csv', 'json']).default('csv'),
-        window: z.enum(['24h', '7d', '30d']).default('30d'),
+        window: z.enum(['24h', '7d', '30d', '90d', '1y']).default('1y'),
     }),
 };
 

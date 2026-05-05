@@ -32,6 +32,26 @@ function dayKey(date) {
 }
 
 const REPORT_RETENTION_DAYS = 30;
+const ANON_RETENTION_DAYS = 365;
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Build the long-retention anonymized row. Identical shape to the export columns,
+// timestamp pre-rounded to the minute so per-second timing fingerprints can't be
+// recovered even by direct Firestore access. expiresAt drives the 365d TTL.
+function buildAnonRow({ createdAt, fsa, severity, odourType, intersection }) {
+    const minute = new Date(Math.floor(createdAt.getTime() / 60000) * 60000);
+    const row = {
+        createdAt: minute,
+        expiresAt: new Date(minute.getTime() + ANON_RETENTION_DAYS * 24 * 60 * 60 * 1000),
+        fsa,
+        severity,
+        dayOfWeek: DOW[minute.getUTCDay()],
+        hourOfDay: minute.getUTCHours(),
+    };
+    if (odourType) row.odourType = odourType;
+    if (intersection) row.intersection = intersection;
+    return row;
+}
 
 const submitLimiter = createRateLimit({ max: 3, windowMs: 60 * 60 * 1000, bucket: 'submit', message: 'You can send up to 3 reports per hour from one connection. Try again shortly.' });
 
@@ -152,11 +172,23 @@ router.post('/',
         const reportRef = db.collection(COLLECTIONS.reports).doc();
         const counterId = `${fsa}_${dayKey(now)}`;
         const counterRef = db.collection(COLLECTIONS.dailyCounts).doc(counterId);
+        const anonRef = db.collection(COLLECTIONS.reportsAnon).doc();
 
         try {
             await db.runTransaction(async (tx) => {
                 tx.set(reportRef, report);
                 if (status === 'active') {
+                    // Mirror to the long-retention anon collection. Skipped for
+                    // pending-review writes — those don't materialize publicly until
+                    // a moderator clears them, at which point a future approval flow
+                    // would need to backfill the anon row.
+                    tx.set(anonRef, buildAnonRow({
+                        createdAt: now,
+                        fsa,
+                        severity: data.severity,
+                        odourType: data.odourType,
+                        intersection: data.intersection,
+                    }));
                     // IMPORTANT: nest sub-counters under maps. set({merge:true}) does NOT
                     // expand dotted keys into nested paths (only update() does), so writing
                     // `'bySeverity.0': increment(1)` would store a literal flat field name.
@@ -316,8 +348,9 @@ router.get('/timeline',
     })
 );
 
-// Anonymized bulk export for analysts. Returns a flat row per active report,
-// stripped of every reidentifier:
+// Anonymized bulk export for analysts. Reads from `reports-anon` (companion to
+// `reports`, written in the same transaction at submit time, 365d TTL). The anon
+// collection itself is the privacy boundary — by construction it never holds:
 //
 //   - description: free text, brittle to anonymize. Even after PII regex strips
 //     emails/phones, unique phrasing ("smell from my garage...") can centroid
@@ -325,16 +358,15 @@ router.get('/timeline',
 //   - approxLat/Lng: even jittered, ≥7 days of points reduce to a home address.
 //     Excluded entirely; analysts use fsa + intersection for spatial questions.
 //   - clientId, ipHash, userAgent: internal identifiers, never leave the system.
-//   - pending-review reports: held because PII was detected; never exported.
+//   - pending-review reports: held because PII was detected; the dual-write at
+//     submit only fires on status==='active', so flagged rows never reach here.
 //
-// createdAt is rounded down to the minute so per-second timing fingerprints
-// can't single out a reporter who submitted at e.g. 02:34:17.
+// createdAt is pre-rounded to the minute at write time (see buildAnonRow).
 //
 // Privacy rationale lives in /about — keep both in sync if columns change.
 const EXPORT_LIMIT = 5000;
-const EXPORT_WINDOW_DAYS = { '24h': 1, '7d': 7, '30d': 30 };
+const EXPORT_WINDOW_DAYS = { '24h': 1, '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
 const EXPORT_COLS = ['createdAt', 'fsa', 'severity', 'odourType', 'intersection', 'dayOfWeek', 'hourOfDay'];
-const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const exportLimiter = createRateLimit({
     max: 12, windowMs: 60 * 60 * 1000, bucket: 'export',
@@ -348,17 +380,16 @@ function csvEscape(v) {
     return s;
 }
 
-function exportRowFromDoc(d) {
+function exportRowFromAnonDoc(d) {
     const t = d.createdAt?.toDate?.() || new Date(d.createdAt);
-    const minuteIso = new Date(Math.floor(t.getTime() / 60000) * 60000).toISOString();
     return {
-        createdAt: minuteIso,
+        createdAt: t.toISOString(),
         fsa: d.fsa || '',
         severity: d.severity ?? '',
         odourType: d.odourType || '',
         intersection: d.intersection || '',
-        dayOfWeek: DOW[t.getUTCDay()],
-        hourOfDay: t.getUTCHours(),
+        dayOfWeek: d.dayOfWeek || DOW[t.getUTCDay()],
+        hourOfDay: d.hourOfDay ?? t.getUTCHours(),
     };
 }
 
@@ -372,14 +403,13 @@ router.get('/export',
         const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
         try {
-            const snap = await db.collection(COLLECTIONS.reports)
-                .where('status', '==', 'active')
+            const snap = await db.collection(COLLECTIONS.reportsAnon)
                 .where('createdAt', '>=', cutoff)
                 .orderBy('createdAt', 'desc')
                 .limit(EXPORT_LIMIT)
                 .get();
 
-            const rows = snap.docs.map((doc) => exportRowFromDoc(doc.data()));
+            const rows = snap.docs.map((doc) => exportRowFromAnonDoc(doc.data()));
             const today = new Date().toISOString().slice(0, 10);
             const filename = `stink-reports-${window}-${today}.${format}`;
             res.setHeader('Cache-Control', 'public, max-age=300');

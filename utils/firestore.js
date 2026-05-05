@@ -31,6 +31,11 @@ function requireDb() {
 
 const COLLECTIONS = {
     reports: 'reports',
+    // Long-retention companion to `reports`. Written in the same transaction at submit
+    // time but stripped of every reidentifier (no ipHash, clientId, GPS, description).
+    // Drives the bulk data export and gets a 365d TTL so analysts can pull seasonal data.
+    // Configure a Firestore TTL policy on `reports-anon.expiresAt`.
+    reportsAnon: 'reports-anon',
     dailyCounts: 'daily-counts',
     subscribers: 'subscribers',
     alertState: 'fsa-alert-state',

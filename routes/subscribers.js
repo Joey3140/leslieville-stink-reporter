@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireDb, COLLECTIONS, FieldValue } = require('../utils/firestore');
 const { hashEmail, randomToken } = require('../utils/hash');
+const { encryptEmail } = require('../utils/email-crypto');
 const { validate, validateQuery, schemas } = require('../middleware/validate');
 const { createRateLimit } = require('../middleware/rate-limit');
 const { turnstileMiddleware } = require('../middleware/turnstile');
@@ -67,7 +68,9 @@ router.post('/',
         } else {
             unsubscribeToken = randomToken(32);
             docRef = await subsRef.add({
-                email,
+                // Stored encrypted at rest; the original plaintext stays in scope below
+                // so the immediate confirmation email still uses the user-typed address.
+                email: encryptEmail(email),
                 emailHash,
                 fsas,
                 thresholdSeverity,

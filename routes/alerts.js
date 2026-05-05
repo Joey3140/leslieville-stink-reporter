@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireDb, COLLECTIONS, FieldValue } = require('../utils/firestore');
 const { sendBatch } = require('../utils/email');
+const { decryptEmail } = require('../utils/email-crypto');
 const { cronAuth } = require('../middleware/cron-auth');
 const { asyncHandler } = require('../utils/async-handler');
 const { createChild } = require('../utils/logger');
@@ -95,18 +96,27 @@ router.post('/alert-check', cronAuth, asyncHandler(async (req, res) => {
         return res.json({ ok: true, checked: watchedFsas.size, triggered: 0 });
     }
 
-    // Build email batch. Filter subscribers by FSA + threshold; dedup by email if subscriber
-    // watches multiple triggered FSAs (combine into one digest email per address).
+    // Build email batch. Filter subscribers by FSA + threshold; dedup by emailHash
+    // (deterministic) — sub.email is encrypted and AES-GCM ciphertext is non-deterministic,
+    // so two ciphertexts of the same address would not collide as a key.
     const messagesByEmail = {};
     let queuedCount = 0;
     for (const t of triggered) {
         const eligible = (subsByFsa[t.fsa] || []).filter((s) => (s.thresholdSeverity || 3) <= t.avgSev);
         for (const sub of eligible) {
             if (sentToday + queuedCount >= ALERT_DAILY_CAP) break;
-            // First trigger wins per email; future versions can digest multiple triggers.
-            if (!messagesByEmail[sub.email]) {
-                messagesByEmail[sub.email] = {
-                    to: sub.email,
+            // First trigger wins per recipient; future versions can digest multiple triggers.
+            if (!messagesByEmail[sub.emailHash]) {
+                let recipient;
+                try {
+                    recipient = decryptEmail(sub.email);
+                } catch (err) {
+                    log.error({ err, subId: sub.id }, 'failed to decrypt subscriber email — skipping');
+                    continue;
+                }
+                if (!recipient) continue;
+                messagesByEmail[sub.emailHash] = {
+                    to: recipient,
                     subject: `Stench alert — ${t.count} reports in ${t.fsa}`,
                     template: 'alert',
                     data: {

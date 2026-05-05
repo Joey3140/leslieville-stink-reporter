@@ -26,6 +26,14 @@ if (process.env.NODE_ENV === 'production' && !process.env.PUBLIC_BASE_URL) {
     process.exit(1);
 }
 
+// Subscriber emails are encrypted at rest with AES-256-GCM. Without the key,
+// the alert cron can't decrypt addresses to send to and new signups can't be
+// stored — refuse to start rather than fail silently per-request.
+if (process.env.NODE_ENV === 'production' && !process.env.SUBSCRIBER_EMAIL_KEY) {
+    log.fatal('SUBSCRIBER_EMAIL_KEY must be set in production — refusing to start.');
+    process.exit(1);
+}
+
 // Lenient parse: tolerates trailing whitespace, newlines, or stray characters that
 // commonly appear when pasting a long JSON blob into a hosting provider's env-var UI.
 // Walks the string once, returns the first balanced top-level object.

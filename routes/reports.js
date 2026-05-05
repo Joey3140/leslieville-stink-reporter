@@ -316,6 +316,97 @@ router.get('/timeline',
     })
 );
 
+// Anonymized bulk export for analysts. Returns a flat row per active report,
+// stripped of every reidentifier:
+//
+//   - description: free text, brittle to anonymize. Even after PII regex strips
+//     emails/phones, unique phrasing ("smell from my garage...") can centroid
+//     to one person. Excluded outright.
+//   - approxLat/Lng: even jittered, ≥7 days of points reduce to a home address.
+//     Excluded entirely; analysts use fsa + intersection for spatial questions.
+//   - clientId, ipHash, userAgent: internal identifiers, never leave the system.
+//   - pending-review reports: held because PII was detected; never exported.
+//
+// createdAt is rounded down to the minute so per-second timing fingerprints
+// can't single out a reporter who submitted at e.g. 02:34:17.
+//
+// Privacy rationale lives in /about — keep both in sync if columns change.
+const EXPORT_LIMIT = 5000;
+const EXPORT_WINDOW_DAYS = { '24h': 1, '7d': 7, '30d': 30 };
+const EXPORT_COLS = ['createdAt', 'fsa', 'severity', 'odourType', 'intersection', 'dayOfWeek', 'hourOfDay'];
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const exportLimiter = createRateLimit({
+    max: 12, windowMs: 60 * 60 * 1000, bucket: 'export',
+    message: 'Too many export requests from this IP, please try again later',
+});
+
+function csvEscape(v) {
+    if (v == null) return '';
+    const s = String(v);
+    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+}
+
+function exportRowFromDoc(d) {
+    const t = d.createdAt?.toDate?.() || new Date(d.createdAt);
+    const minuteIso = new Date(Math.floor(t.getTime() / 60000) * 60000).toISOString();
+    return {
+        createdAt: minuteIso,
+        fsa: d.fsa || '',
+        severity: d.severity ?? '',
+        odourType: d.odourType || '',
+        intersection: d.intersection || '',
+        dayOfWeek: DOW[t.getUTCDay()],
+        hourOfDay: t.getUTCHours(),
+    };
+}
+
+router.get('/export',
+    exportLimiter,
+    validateQuery(schemas.exportQuery),
+    asyncHandler(async (req, res) => {
+        const db = requireDb();
+        const { format, window } = req.validatedQuery;
+        const days = EXPORT_WINDOW_DAYS[window];
+        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+        try {
+            const snap = await db.collection(COLLECTIONS.reports)
+                .where('status', '==', 'active')
+                .where('createdAt', '>=', cutoff)
+                .orderBy('createdAt', 'desc')
+                .limit(EXPORT_LIMIT)
+                .get();
+
+            const rows = snap.docs.map((doc) => exportRowFromDoc(doc.data()));
+            const today = new Date().toISOString().slice(0, 10);
+            const filename = `stink-reports-${window}-${today}.${format}`;
+            res.setHeader('Cache-Control', 'public, max-age=300');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+            if (format === 'json') {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                return res.json({
+                    window,
+                    generatedAt: new Date().toISOString(),
+                    truncated: rows.length >= EXPORT_LIMIT,
+                    count: rows.length,
+                    items: rows,
+                });
+            }
+
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            const header = EXPORT_COLS.join(',');
+            const body = rows.map((r) => EXPORT_COLS.map((c) => csvEscape(r[c])).join(',')).join('\n');
+            res.send(`${header}\n${body}\n`);
+        } catch (err) {
+            log.error({ err }, 'export query failed');
+            res.status(500).json({ error: 'Failed to generate export' });
+        }
+    })
+);
+
 router.get('/dots',
     validateQuery(schemas.dotsQuery),
     asyncHandler(async (req, res) => {

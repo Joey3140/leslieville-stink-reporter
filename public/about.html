@@ -68,9 +68,17 @@
 
         <h3 style="font-family:var(--serif); font-size:18px; font-weight:600; margin:24px 0 6px">Anti-abuse</h3>
         <ul>
-            <li>10 reports/hour/IP rate limit. Cloudflare Turnstile verifies you're human (no Google reCAPTCHA — Turnstile doesn't track users across the web).</li>
+            <li>3 reports/hour/IP rate limit. Cloudflare Turnstile verifies you're human (no Google reCAPTCHA — Turnstile doesn't track users across the web).</li>
             <li>Public stats show both <em>report count</em> and <em>unique reporter count</em> — so a single person filing 50 reports doesn't distort the picture.</li>
             <li>Same browser submitting twice in 30 minutes is silently de-duplicated so spam loops don't inflate counts.</li>
+        </ul>
+
+        <h3 style="font-family:var(--serif); font-size:18px; font-weight:600; margin:24px 0 6px">Open data</h3>
+        <p>The dataset is downloadable as CSV or JSON for journalists, researchers, and anyone running their own analysis: <a href="/api/reports/export?format=csv&amp;window=30d" download>30-day CSV</a> · <a href="/api/reports/export?format=csv&amp;window=7d" download>7-day CSV</a> · <a href="/api/reports/export?format=json&amp;window=30d" download>30-day JSON</a>. Capped at 5000 rows per download and 12 downloads per hour per IP.</p>
+        <ul>
+            <li><strong>Included:</strong> timestamp (rounded to the minute), FSA, severity, odour type, closest intersection, day-of-week, hour-of-day.</li>
+            <li><strong>Excluded:</strong> the free-text description (unique phrasing can re-identify a reporter even after PII filters), GPS coordinates (≥7 days of jittered points centroid back to a home address), the IP hash, the per-browser ID, and any report held for moderation.</li>
+            <li>Same 30-day retention applies — the export reflects the database, which is auto-purged on a Firestore TTL.</li>
         </ul>
 
         <h2>Who's behind this</h2>

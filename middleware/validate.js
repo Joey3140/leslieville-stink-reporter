@@ -91,6 +91,11 @@ const schemas = {
     }),
 
     timelineQuery: z.object({}).strict(),
+
+    exportQuery: z.object({
+        format: z.enum(['csv', 'json']).default('csv'),
+        window: z.enum(['24h', '7d', '30d']).default('30d'),
+    }),
 };
 
 module.exports = { validate, validateQuery, schemas, SEVERITY_VALUES, POSITIVE_SEVERITY_VALUES, ODOUR_TYPES, WINDOW_VALUES };

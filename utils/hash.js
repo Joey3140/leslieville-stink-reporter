@@ -17,10 +17,19 @@ function randomToken(bytes = 32) {
     return crypto.randomBytes(bytes).toString('hex');
 }
 
+// Resolves the real client IP for rate-limit/dedup keying.
+//
+// We rely on Express's `trust proxy: true` (set in server.js) to walk the
+// X-Forwarded-For chain right-to-left and stop at the first untrusted hop —
+// which on Vercel is the actual client. Reading XFF[0] directly (the previous
+// implementation) trusted client-supplied data, which let an attacker spoof
+// `X-Forwarded-For: 1.2.3.4, real-attacker-ip` to rotate the rate-limit bucket
+// on every request and bypass throttling entirely.
+//
+// req.ip is the canonical answer when trust-proxy is configured; the socket
+// fallback covers local-dev where headers aren't injected.
 function getClientIp(req) {
-    const xff = req.headers['x-forwarded-for'];
-    if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0].trim();
-    return req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress || 'unknown';
+    return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
 // Deterministic per-(ipHash,dayKey) lat/lng jitter. Same reporter → same offset all day.

@@ -254,6 +254,68 @@ router.get('/recent',
     })
 );
 
+// Powers the timeline scrubber: a 30-day index of reports so the client can
+// replay histogram volume + FSA polygon counts without per-scrub round trips.
+//
+// Privacy: this payload deliberately OMITS lat/lng — even consented coords are
+// excluded. The per-(ipHash, dayKey) jitter on /dots blunts same-day volume
+// attacks, but exposing 30 days of jittered coords from a repeat reporter
+// would let an attacker centroid 30 samples down to a real address. Coord-
+// bearing data stays on /dots, which caps the window at 7 days.
+//
+// Rate limit: 60 reads/hour/IP keeps drive-by scrapers from pulling the
+// dataset on a loop while leaving the legitimate dashboard's 60s polling
+// well clear (~60 reqs/hour per visitor).
+const TIMELINE_DAYS = 30;
+const TIMELINE_LIMIT = 5000;
+
+const timelineLimiter = createRateLimit({
+    max: 60, windowMs: 60 * 60 * 1000, bucket: 'timeline',
+    message: 'Too many timeline requests from this IP, please try again later',
+});
+
+router.get('/timeline',
+    timelineLimiter,
+    validateQuery(schemas.timelineQuery),
+    asyncHandler(async (req, res) => {
+        const db = requireDb();
+        const cutoff = new Date(Date.now() - TIMELINE_DAYS * 24 * 60 * 60 * 1000);
+        try {
+            const snap = await db.collection(COLLECTIONS.reports)
+                .where('status', '==', 'active')
+                .where('createdAt', '>=', cutoff)
+                .orderBy('createdAt', 'desc')
+                .limit(TIMELINE_LIMIT)
+                .get();
+            // orderBy desc + limit means truncation drops the OLDEST data, not
+            // the newest — so a "stink event" surge can't push current data out.
+            // Client expects ascending order for histogram bins, but a single
+            // .reverse() at the end is fine.
+            const items = snap.docs.map((doc) => {
+                const d = doc.data();
+                const item = {
+                    createdAt: d.createdAt?.toDate?.()?.toISOString?.() || new Date(d.createdAt).toISOString(),
+                    fsa: d.fsa,
+                    severity: d.severity,
+                };
+                if (d.odourType) item.odourType = d.odourType;
+                return item;
+            }).reverse();
+            res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+            res.json({
+                items,
+                windowDays: TIMELINE_DAYS,
+                limit: TIMELINE_LIMIT,
+                truncated: items.length >= TIMELINE_LIMIT,
+                generatedAt: new Date().toISOString(),
+            });
+        } catch (err) {
+            log.error({ err }, 'timeline query failed');
+            res.status(500).json({ error: 'Failed to load timeline' });
+        }
+    })
+);
+
 router.get('/dots',
     validateQuery(schemas.dotsQuery),
     asyncHandler(async (req, res) => {

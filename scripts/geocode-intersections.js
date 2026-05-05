@@ -51,6 +51,29 @@ function fsaCentroid(geom) {
     return { lat: sy / ring.length, lng: sx / ring.length };
 }
 
+// Deterministic scatter around an FSA centroid. Hash the intersection name to
+// pick a (radius, angle) and offset the centroid by that vector. Distance
+// 80–200m so neighbouring intersections in the same FSA spread out without
+// crossing the polygon boundary (Toronto FSAs are ~1–2km across). Same name
+// always produces the same scatter, so the file diffs cleanly across re-runs.
+function nameHash(name) {
+    let h = 5381;
+    for (let i = 0; i < name.length; i++) h = ((h << 5) + h + name.charCodeAt(i)) | 0;
+    return Math.abs(h);
+}
+function scatterAroundCentroid(centroid, name) {
+    const h = nameHash(name);
+    const angle = (h % 360) * Math.PI / 180;
+    const radiusM = 80 + (h % 120);
+    // Approximate metres-to-degrees conversion at Toronto's latitude.
+    const dLat = (radiusM * Math.cos(angle)) / 111_000;
+    const dLng = (radiusM * Math.sin(angle)) / (111_000 * Math.cos(centroid.lat * Math.PI / 180));
+    return {
+        lat: +(centroid.lat + dLat).toFixed(5),
+        lng: +(centroid.lng + dLng).toFixed(5),
+    };
+}
+
 // Map our shorthand street names to Nominatim-friendly full names. Without
 // this expansion, queries like "Queen & Coxwell" get matched to nodes on
 // Queen alone and end up returning the same coord for unrelated cross-streets.
@@ -161,18 +184,21 @@ async function geocode(name) {
     }
 
     // Dedup: if two intersections geocoded to the exact same coord (Nominatim
-    // sometimes does this when the cross-street is ambiguous), force the
-    // duplicates back to their FSA centroid so they don't claim each other's
-    // positions on the heatmap.
+    // does this regularly when the cross-street is ambiguous), scatter the
+    // duplicates around their FSA centroid using a deterministic name-hash
+    // offset. The previous behavior — collapsing to a single centroid coord —
+    // caused 8+ unrelated intersections to share identical positions on the
+    // heatmap, defeating the whole point of an intersection picker.
     const seen = new Map();
     for (const ix of intersections.intersections) {
         if (!Number.isFinite(ix.lat) || !Number.isFinite(ix.lng)) continue;
         const key = `${ix.lat}|${ix.lng}`;
         if (seen.has(key)) {
-            const c = fsaCentroid(fsaByCode[ix.fsa].geometry);
-            ix.lat = +c.lat.toFixed(5);
-            ix.lng = +c.lng.toFixed(5);
-            console.log(`× ${ix.name} (${ix.fsa}) duplicated ${seen.get(key)} → reset to centroid`);
+            const scattered = scatterAroundCentroid(fsaCentroid(fsaByCode[ix.fsa].geometry), ix.name);
+            ix.lat = scattered.lat;
+            ix.lng = scattered.lng;
+            console.log(`× ${ix.name} (${ix.fsa}) duplicated ${seen.get(key)} → scattered to ${ix.lat}, ${ix.lng}`);
+            seen.set(`${ix.lat}|${ix.lng}`, ix.name);
         } else {
             seen.set(key, ix.name);
         }

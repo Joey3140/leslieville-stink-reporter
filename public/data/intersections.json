@@ -1,5 +1,5 @@
 {
-    "version": 3,
+    "version": 4,
     "comment": "Curated allow-list of major intersections in the FSAs most affected by the Ashbridges Bay plant. lat/lng populated by scripts/geocode-intersections.js. Server applies deterministic per-reporter jitter when synthesizing approxLat/approxLng from these coords, so no individual report is geocoded back to a precise address.",
     "intersections": [
         {
@@ -11,14 +11,14 @@
         {
             "name": "Queen & Logan",
             "fsa": "M4M",
-            "lat": 43.62193,
-            "lng": -79.33822
+            "lat": 43.62143,
+            "lng": -79.33574
         },
         {
             "name": "Queen & Pape",
             "fsa": "M4M",
-            "lat": 43.62193,
-            "lng": -79.33822
+            "lat": 43.62101,
+            "lng": -79.33766
         },
         {
             "name": "Dundas & Carlaw",
@@ -29,32 +29,32 @@
         {
             "name": "Dundas & Pape",
             "fsa": "M4M",
-            "lat": 43.62193,
-            "lng": -79.33822
+            "lat": 43.62275,
+            "lng": -79.34067
         },
         {
             "name": "Dundas & Logan",
             "fsa": "M4M",
-            "lat": 43.62193,
-            "lng": -79.33822
+            "lat": 43.6228,
+            "lng": -79.33893
         },
         {
             "name": "Gerrard & Carlaw",
             "fsa": "M4M",
-            "lat": 43.62193,
+            "lat": 43.62045,
             "lng": -79.33822
         },
         {
             "name": "Gerrard & Pape",
             "fsa": "M4M",
-            "lat": 43.62193,
-            "lng": -79.33822
+            "lat": 43.62109,
+            "lng": -79.33974
         },
         {
             "name": "Gerrard & Logan",
             "fsa": "M4M",
-            "lat": 43.62193,
-            "lng": -79.33822
+            "lat": 43.622,
+            "lng": -79.33679
         },
         {
             "name": "Eastern & Carlaw",
@@ -77,8 +77,8 @@
         {
             "name": "Lake Shore & Leslie",
             "fsa": "M4M",
-            "lat": 43.62193,
-            "lng": -79.33822
+            "lat": 43.62245,
+            "lng": -79.33673
         },
         {
             "name": "Queen & Greenwood",
@@ -89,8 +89,8 @@
         {
             "name": "Queen & Jones",
             "fsa": "M4L",
-            "lat": 43.6699,
-            "lng": -79.31665
+            "lat": 43.67056,
+            "lng": -79.31753
         },
         {
             "name": "Queen & Coxwell",
@@ -107,14 +107,14 @@
         {
             "name": "Dundas & Jones",
             "fsa": "M4L",
-            "lat": 43.6699,
-            "lng": -79.31665
+            "lat": 43.66906,
+            "lng": -79.31866
         },
         {
             "name": "Dundas & Coxwell",
             "fsa": "M4L",
-            "lat": 43.6699,
-            "lng": -79.31665
+            "lat": 43.66987,
+            "lng": -79.31507
         },
         {
             "name": "Gerrard & Greenwood",
@@ -125,8 +125,8 @@
         {
             "name": "Gerrard & Jones",
             "fsa": "M4L",
-            "lat": 43.6699,
-            "lng": -79.31665
+            "lat": 43.67114,
+            "lng": -79.31528
         },
         {
             "name": "Gerrard & Coxwell",
@@ -143,50 +143,50 @@
         {
             "name": "Lake Shore & Coxwell",
             "fsa": "M4L",
-            "lat": 43.6699,
-            "lng": -79.31665
+            "lat": 43.67068,
+            "lng": -79.3152
         },
         {
             "name": "Queen & Woodbine",
             "fsa": "M4E",
-            "lat": 43.67233,
-            "lng": -79.2961
+            "lat": 43.6737,
+            "lng": -79.29694
         },
         {
             "name": "Queen & Lee",
             "fsa": "M4E",
-            "lat": 43.67233,
-            "lng": -79.2961
+            "lat": 43.67173,
+            "lng": -79.29504
         },
         {
             "name": "Queen & Beech",
             "fsa": "M4E",
-            "lat": 43.67233,
-            "lng": -79.2961
+            "lat": 43.67234,
+            "lng": -79.29825
         },
         {
             "name": "Queen & Balsam",
             "fsa": "M4E",
-            "lat": 43.67233,
-            "lng": -79.2961
+            "lat": 43.67285,
+            "lng": -79.29429
         },
         {
             "name": "Queen & Glen Manor",
             "fsa": "M4E",
-            "lat": 43.67233,
-            "lng": -79.2961
+            "lat": 43.67376,
+            "lng": -79.29551
         },
         {
             "name": "Kingston & Woodbine",
             "fsa": "M4E",
-            "lat": 43.67233,
-            "lng": -79.2961
+            "lat": 43.67363,
+            "lng": -79.29461
         },
         {
             "name": "Lake Shore & Woodbine",
             "fsa": "M4E",
-            "lat": 43.67233,
-            "lng": -79.2961
+            "lat": 43.67239,
+            "lng": -79.29494
         },
         {
             "name": "Danforth & Donlands",
@@ -209,20 +209,20 @@
         {
             "name": "Danforth & Coxwell",
             "fsa": "M4J",
-            "lat": 43.69172,
-            "lng": -79.33746
+            "lat": 43.69152,
+            "lng": -79.33644
         },
         {
             "name": "Gerrard & Donlands",
             "fsa": "M4J",
-            "lat": 43.69172,
-            "lng": -79.33746
+            "lat": 43.69076,
+            "lng": -79.33751
         },
         {
             "name": "Cosburn & Pape",
             "fsa": "M4J",
-            "lat": 43.69172,
-            "lng": -79.33746
+            "lat": 43.68994,
+            "lng": -79.3366
         },
         {
             "name": "Cosburn & Coxwell",
@@ -245,14 +245,14 @@
         {
             "name": "Danforth & Logan",
             "fsa": "M4K",
-            "lat": 43.68036,
-            "lng": -79.35408
+            "lat": 43.67968,
+            "lng": -79.35219
         },
         {
             "name": "Danforth & Broadview",
             "fsa": "M4K",
-            "lat": 43.68036,
-            "lng": -79.35408
+            "lat": 43.67913,
+            "lng": -79.3538
         },
         {
             "name": "Front & Parliament",
@@ -281,14 +281,14 @@
         {
             "name": "Kingston & Victoria Park",
             "fsa": "M1N",
-            "lat": 43.69554,
-            "lng": -79.26157
+            "lat": 43.69458,
+            "lng": -79.26032
         },
         {
             "name": "Kingston & Warden",
             "fsa": "M1N",
-            "lat": 43.69554,
-            "lng": -79.26157
+            "lat": 43.69665,
+            "lng": -79.26217
         },
         {
             "name": "Kingston & Birchmount",
@@ -305,8 +305,8 @@
         {
             "name": "Danforth & Birchmount",
             "fsa": "M1N",
-            "lat": 43.69554,
-            "lng": -79.26157
+            "lat": 43.69651,
+            "lng": -79.26113
         }
     ]
 }

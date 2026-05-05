@@ -46,8 +46,19 @@
     const windFieldLayer = L.layerGroup();
     let windFieldBuilt = false;
     let windFieldVisible = true;        // toggle starts ON; persisted in localStorage below
-    let activeWindow = '24h';
     let geojsonCache = null;
+
+    // Phase 3 — every layer (FSA polygons, 200m grid, dot markers) is now
+    // driven by the prefetched 30-day timeline cache filtered to a single
+    // (currentAt ± currentWindowMs/2) slice. The map module no longer fetches
+    // /api/reports/heatmap or /api/reports/dots; timeline.js owns the data
+    // source and dispatches lsv:scrub on every change. windFieldVisible holds
+    // the user's persisted wind-toggle preference; windFrozenForScrub is a
+    // transient hide while scrubbed to past (since OWM data is current-only).
+    let currentAt = Date.now();
+    let currentWindowMs = 60 * 60 * 1000;
+    let isLive = true;
+    let windFrozenForScrub = false;
 
     async function loadGeojson() {
         if (geojsonCache) return geojsonCache;
@@ -105,11 +116,11 @@
         el.innerHTML = `<span>Fewer</span><span class="legend-bar">${swatches}</span><span>More</span><span class="legend-sep">200m cells</span>`;
     }
 
-    function setupFsaTooltip(feature, layer, count) {
+    function setupFsaTooltip(feature, layer, count, windowLabel) {
         const fsa = feature.properties.CFSAUID;
         const tip = document.getElementById('fsaTooltip');
         const showTip = () => {
-            tip.innerHTML = `<strong>${escapeHtml(fsa)}</strong><div class="sub">${count} report${count === 1 ? '' : 's'} · ${escapeHtml(activeWindow)}</div>`;
+            tip.innerHTML = `<strong>${escapeHtml(fsa)}</strong><div class="sub">${count} report${count === 1 ? '' : 's'} · ${escapeHtml(windowLabel)}</div>`;
             tip.classList.add('show');
             layer.setStyle({ weight: 2.5, opacity: 0.85, dashArray: null });
         };
@@ -122,83 +133,69 @@
         layer.on('click', showTip);
     }
 
-    // FSA polygons are dashed outlines only — granular density is carried by the grid
-    // overlay below. The /api/reports/heatmap counts still drive the hover tooltip so a
-    // user can see the aggregate per FSA.
-    async function refreshFsaOutlines(geojson) {
-        try {
-            const { counts } = await getJson(`/api/reports/heatmap?window=${activeWindow}`);
-            if (fsaLayer) fsaLayer.remove();
-            // FSAs with at least one positive report tint with the heat ramp so a
-            // location-less submission still paints its FSA. The 200m grid still
-            // overlays on top wherever opt-in dots exist for finer resolution.
-            fsaLayer = L.geoJSON(geojson, {
-                style: (feature) => {
-                    const c = counts[feature.properties.CFSAUID] || 0;
-                    return c > 0
-                        ? { fillColor: colorFor(c), fillOpacity: 0.32, weight: 1.5, color: '#1B1B1B', opacity: 0.55, dashArray: '6 4' }
-                        : { fillColor: '#1B1B1B',  fillOpacity: 0.02, weight: 1.5, color: '#1B1B1B', opacity: 0.55, dashArray: '6 4' };
-                },
-                onEachFeature: (feature, layer) => {
-                    setupFsaTooltip(feature, layer, counts[feature.properties.CFSAUID] || 0);
-                },
-            }).addTo(map);
-            // Static FSA labels at each polygon's approximate centroid.
-            geojson.features.forEach((f) => {
-                const center = fsaCentroid(f.geometry);
-                L.marker(center, {
-                    icon: L.divIcon({
-                        className: 'fsa-label',
-                        html: `<span class="fsa-label-pill">${f.properties.CFSAUID}</span>`,
-                        iconSize: [44, 18], iconAnchor: [22, 9],
-                    }),
-                    interactive: false,
-                }).addTo(fsaLayer);
-            });
-        } catch (err) {
-            console.error('fsa outlines failed', err);
-        }
+    // Renders the FSA outline layer with per-FSA counts coming from the
+    // pre-filtered cache. Synchronous now (data lives in window.LSV.timeline);
+    // the polygon shapes themselves come from the local geojson which is
+    // loaded once at boot.
+    function renderFsaOutlines(geojson, counts, windowLabel) {
+        if (fsaLayer) fsaLayer.remove();
+        fsaLayer = L.geoJSON(geojson, {
+            style: (feature) => {
+                const c = counts[feature.properties.CFSAUID] || 0;
+                return c > 0
+                    ? { fillColor: colorFor(c), fillOpacity: 0.32, weight: 1.5, color: '#1B1B1B', opacity: 0.55, dashArray: '6 4' }
+                    : { fillColor: '#1B1B1B',  fillOpacity: 0.02, weight: 1.5, color: '#1B1B1B', opacity: 0.55, dashArray: '6 4' };
+            },
+            onEachFeature: (feature, layer) => {
+                setupFsaTooltip(feature, layer, counts[feature.properties.CFSAUID] || 0, windowLabel);
+            },
+        }).addTo(map);
+        geojson.features.forEach((f) => {
+            const center = fsaCentroid(f.geometry);
+            L.marker(center, {
+                icon: L.divIcon({
+                    className: 'fsa-label',
+                    html: `<span class="fsa-label-pill">${f.properties.CFSAUID}</span>`,
+                    iconSize: [44, 18], iconAnchor: [22, 9],
+                }),
+                interactive: false,
+            }).addTo(fsaLayer);
+        });
     }
 
-    // 200m grid overlay. Bins opt-in dot data into fixed cells covering MAP_BOUNDS.
+    // 200m grid overlay. Bins consented dots into fixed cells covering MAP_BOUNDS.
     // At ~43.66°N: 1° lat ≈ 111 km, 1° lng ≈ 80.7 km → 200m ≈ 0.0018° lat, 0.00248° lng.
     // Severity-0 ("all clear") points are excluded so a flood of clears can't paint a cell red.
-    async function refreshGrid() {
+    function renderGrid(items, windowLabel) {
         if (gridLayer) { gridLayer.remove(); gridLayer = null; }
-        if (activeWindow !== '24h' && activeWindow !== '7d') return;   // dots endpoint only serves 24h/7d
-        try {
-            const { items } = await getJson(`/api/reports/dots?window=${activeWindow}`);
-            if (!items || !items.length) return;
-            const cellLat = 0.0018, cellLng = 0.00248;
-            const south = MAP_BOUNDS.getSouth(), west = MAP_BOUNDS.getWest();
-            const cells = new Map();
-            items.forEach((p) => {
-                if ((p.severity || 0) === 0) return;   // exclude all-clear from heat
-                if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return;
-                const r = Math.floor((p.lat - south) / cellLat);
-                const c = Math.floor((p.lng - west) / cellLng);
-                if (r < 0 || c < 0) return;
-                const k = `${r}_${c}`;
-                cells.set(k, (cells.get(k) || 0) + 1);
-            });
-            if (!cells.size) return;
-            gridLayer = L.layerGroup();
-            cells.forEach((count, key) => {
-                const [r, c] = key.split('_').map(Number);
-                const lat0 = south + r * cellLat;
-                const lng0 = west + c * cellLng;
-                L.rectangle([[lat0, lng0], [lat0 + cellLat, lng0 + cellLng]], {
-                    fillColor: colorFor(count),
-                    fillOpacity: 0.78,
-                    weight: 0.4,
-                    color: '#1B1B1B',
-                    opacity: 0.18,
-                }).bindTooltip(`${count} report${count === 1 ? '' : 's'} · 200m cell · ${activeWindow}`).addTo(gridLayer);
-            });
-            gridLayer.addTo(map);
-        } catch (err) {
-            console.error('grid failed', err);
-        }
+        if (!items || !items.length) return;
+        const cellLat = 0.0018, cellLng = 0.00248;
+        const south = MAP_BOUNDS.getSouth(), west = MAP_BOUNDS.getWest();
+        const cells = new Map();
+        items.forEach((p) => {
+            if ((p.severity || 0) === 0) return;
+            if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return;
+            const r = Math.floor((p.lat - south) / cellLat);
+            const c = Math.floor((p.lng - west) / cellLng);
+            if (r < 0 || c < 0) return;
+            const k = `${r}_${c}`;
+            cells.set(k, (cells.get(k) || 0) + 1);
+        });
+        if (!cells.size) return;
+        gridLayer = L.layerGroup();
+        cells.forEach((count, key) => {
+            const [r, c] = key.split('_').map(Number);
+            const lat0 = south + r * cellLat;
+            const lng0 = west + c * cellLng;
+            L.rectangle([[lat0, lng0], [lat0 + cellLat, lng0 + cellLng]], {
+                fillColor: colorFor(count),
+                fillOpacity: 0.78,
+                weight: 0.4,
+                color: '#1B1B1B',
+                opacity: 0.18,
+            }).bindTooltip(`${count} report${count === 1 ? '' : 's'} · 200m cell · ${windowLabel}`).addTo(gridLayer);
+        });
+        gridLayer.addTo(map);
     }
 
     // ── Wind field overlay ────────────────────────────────────────────────
@@ -263,29 +260,145 @@
         try { localStorage.setItem('lsv_wind_visible', on ? '1' : '0'); } catch (_e) { /* private mode */ }
     }
 
-    async function refreshDots() {
-        if (activeWindow !== '24h' && activeWindow !== '7d') {
+    function renderDots(items) {
+        dotLayer.clearLayers();
+        items.forEach((d) => {
+            const radius = 3 + (d.severity * 0.6);
+            const opacity = 0.45 + (d.severity * 0.1);
+            L.circleMarker([d.lat, d.lng], {
+                radius,
+                color: '#1B1B1B',
+                weight: 0.5,
+                fillColor: '#DA291C',
+                fillOpacity: opacity,
+            }).addTo(dotLayer).bindTooltip(`${escapeHtml(d.fsa)} · sev ${d.severity} · ${escapeHtml(TYPE_LABEL[d.odourType] || d.odourType || 'unspecified')}`);
+        });
+    }
+
+    // ── Layer pipeline ────────────────────────────────────────────────────
+    // Two data sources feed this pipeline:
+    //
+    //   1. Timeline cache (window.LSV.timeline.getReports()) — last 30 days,
+    //      no coords. Used for FSA polygon counts at any scrub position.
+    //
+    //   2. /api/reports/dots — last 24h of consented coords, refetched on a
+    //      60s cadence and cleared while scrubbed to the past. Used for the
+    //      dot markers and 200m grid overlay.
+    //
+    // Splitting the sources is the privacy fix from the post-Phase-3 audit:
+    // exposing 30 days of consented coords let an attacker centroid 30 jitter
+    // samples back to a real address. With dots/grid scoped to "now" only,
+    // scrubbed views show aggregate FSA-level activity but never historical
+    // coord data. Live mode keeps the rich dot/grid view.
+    function windowLabelFor(windowMs) {
+        const half = windowMs / 2;
+        const m = 60_000, h = 60 * m, d = 24 * h;
+        if (half < h)        return `±${Math.round(half / m)}m`;
+        if (half < d)        return `±${Math.round(half / h)}h`;
+        return `±${Math.round(half / d)}d`;
+    }
+
+    function filterByWindow(items, at, windowMs) {
+        const half = windowMs / 2;
+        const lo = at - half, hi = at + half;
+        return items.filter((r) => {
+            const t = new Date(r.createdAt).getTime();
+            return t >= lo && t <= hi;
+        });
+    }
+
+    function fsaCountsFromItems(items) {
+        const counts = {};
+        items.forEach((r) => {
+            if ((r.severity || 0) === 0) return;
+            if (!r.fsa) return;
+            counts[r.fsa] = (counts[r.fsa] || 0) + 1;
+        });
+        return counts;
+    }
+
+    let dotCache = [];                  // last fetched /dots payload, used while Live
+    let dotsInFlight = null;
+
+    async function refreshLiveDots() {
+        if (dotsInFlight) return dotsInFlight;
+        dotsInFlight = (async () => {
+            try {
+                const { items } = await getJson('/api/reports/dots?window=24h');
+                dotCache = items || [];
+            } catch (err) {
+                console.error('dots failed', err);
+            } finally {
+                dotsInFlight = null;
+            }
+        })();
+        return dotsInFlight;
+    }
+
+    function renderLayers() {
+        if (!geojsonCache) return;          // boot order: geojson first, then layers
+        const t = window.LSV.timeline;
+        const cache = (t && t.getReports()) || [];
+        const sliced = filterByWindow(cache, currentAt, currentWindowMs);
+        const counts = fsaCountsFromItems(sliced);
+        const label = windowLabelFor(currentWindowMs);
+        renderFsaOutlines(geojsonCache, counts, label);
+        // Dot + grid layers reflect "what's happening now" — only painted in
+        // Live mode. When scrubbed to past, both layers are cleared so the
+        // map shows aggregate-only data.
+        if (isLive) {
+            renderGrid(dotCache, '24h');
+            renderDots(dotCache);
+        } else {
+            if (gridLayer) { gridLayer.remove(); gridLayer = null; }
             dotLayer.clearLayers();
-            return;
-        }
-        try {
-            const { items } = await getJson(`/api/reports/dots?window=${activeWindow}`);
-            dotLayer.clearLayers();
-            items.forEach((d) => {
-                const radius = 3 + (d.severity * 0.6);
-                const opacity = 0.45 + (d.severity * 0.1);
-                L.circleMarker([d.lat, d.lng], {
-                    radius,
-                    color: '#1B1B1B',
-                    weight: 0.5,
-                    fillColor: '#DA291C',
-                    fillOpacity: opacity,
-                }).addTo(dotLayer).bindTooltip(`${escapeHtml(d.fsa)} · sev ${d.severity} · ${escapeHtml(TYPE_LABEL[d.odourType] || d.odourType)}`);
-            });
-        } catch (err) {
-            console.error('dots failed', err);
         }
     }
+
+    function freezeWindForScrub() {
+        if (windFrozenForScrub) return;
+        windFrozenForScrub = true;
+        windFieldLayer.remove();
+        const btn = document.getElementById('windToggle');
+        if (btn) {
+            btn.classList.add('is-frozen');
+            btn.disabled = true;
+            btn.setAttribute('title', 'Wind data is current-only — hidden while scrubbed to past');
+        }
+    }
+    function thawWindForScrub() {
+        if (!windFrozenForScrub) return;
+        windFrozenForScrub = false;
+        if (windFieldVisible) windFieldLayer.addTo(map);
+        const btn = document.getElementById('windToggle');
+        if (btn) {
+            btn.classList.remove('is-frozen');
+            btn.disabled = false;
+            btn.removeAttribute('title');
+        }
+    }
+
+    document.addEventListener('lsv:scrub', (e) => {
+        const { at, windowMs, isLive: live } = e.detail;
+        const wasLive = isLive;
+        currentAt = at;
+        currentWindowMs = windowMs;
+        isLive = !!live;
+        if (!isLive && wasLive) freezeWindForScrub();
+        if (isLive && !wasLive) {
+            thawWindForScrub();
+            // Returning to Live — refresh /dots before rendering so the dot
+            // layer reflects the current 24h, not a stale snapshot from before
+            // the user scrubbed.
+            refreshLiveDots().then(renderLayers);
+            return;
+        }
+        renderLayers();
+    });
+    document.addEventListener('lsv:timeline-cache', () => {
+        // Cache refreshed underfoot — re-render at the current scrub position.
+        renderLayers();
+    });
 
     function addAshbridgesMarker() {
         // Approximate plant location: 43.660 N, -79.314 W
@@ -565,18 +678,8 @@
         }
     }
 
-    // Time-window toggle
-    document.querySelectorAll('.window-toggle button').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            document.querySelectorAll('.window-toggle button').forEach((b) => {
-                b.classList.toggle('active', b === btn);
-                b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
-            });
-            activeWindow = btn.dataset.window;
-            const gj = await loadGeojson();
-            await Promise.all([refreshFsaOutlines(gj), refreshGrid(), refreshDots()]);
-        });
-    });
+    // The .window-toggle now controls the timeline strip's track extent and
+    // is wired up by timeline.js — map.js doesn't observe it directly anymore.
 
     // Wind toggle button — restores prior state from localStorage on load.
     function wireWindToggle() {
@@ -597,25 +700,29 @@
         // Build the wind-field grid once; visibility is controlled by the toggle.
         buildWindField(gj);
         wireWindToggle();
+        // FSA polygon shapes need to be on the map immediately so the user
+        // sees something while the timeline cache is in flight. Counts come
+        // in via the lsv:scrub event timeline.js fires after its first cache
+        // load — at which point renderLayers() repaints with real data.
+        renderFsaOutlines(gj, {}, '±0m');
         // Hold off on rendering the raccoon + lake wave until refreshStats has the
         // real mood. A placeholder mood here flashes the wrong status for ~1s
         // before being overwritten — empty card + aspect-ratio CSS keeps layout.
         await Promise.all([
-            refreshFsaOutlines(gj),
-            refreshGrid(),
-            refreshDots(),
+            refreshLiveDots(),
             refreshFeed(),
             refreshStats(),
             refreshMoodAreas(),
             refreshTicker(),
             refreshWeather(),
         ]);
+        // refreshLiveDots populates dotCache; renderLayers consumes it. Fire
+        // an explicit render now in case the timeline cache hasn't loaded yet.
+        renderLayers();
         autoBlinkRaccoon(document.getElementById('raccoonCard'));
         setInterval(async () => {
             await Promise.all([
-                refreshFsaOutlines(gj),
-                refreshGrid(),
-                refreshDots(),
+                isLive ? refreshLiveDots().then(renderLayers) : Promise.resolve(),
                 refreshFeed(),
                 refreshStats(),
                 refreshMoodAreas(),

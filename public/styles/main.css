@@ -407,6 +407,189 @@ section { padding: 32px 48px; }
 }
 .fsa-tooltip.show { opacity: 1; }
 .fsa-tooltip strong { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+
+/* Timeline scrubber. Phase 1 = histogram strip. Phase 2 = draggable thumb +
+   Live pill + play/pause overlaid on the same strip. The .scrub-* elements
+   only become interactive once the histogram has data; an empty 30 days
+   collapses to .timeline-empty instead. */
+.map-timeline {
+    margin-top: 14px;
+    padding: 12px 14px 10px;
+    border: 1px solid var(--ink-12);
+    border-radius: 12px;
+    background: var(--bg);
+}
+.timeline-meta {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+    gap: 10px;
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-65);
+    margin-bottom: 8px;
+}
+.timeline-meta-left, .timeline-meta-right {
+    display: inline-flex; align-items: center; gap: 10px;
+}
+.timeline-label { color: var(--ink); }
+.timeline-total {
+    flex-basis: 100%; order: 99;
+    color: var(--ink-50); font-feature-settings: "tnum" 1;
+    font-size: 10px;
+}
+.scrub-readout {
+    color: var(--ink); font-feature-settings: "tnum" 1;
+    min-width: 9.5em; text-align: right;
+}
+.scrub-window-picker {
+    display: inline-flex; padding: 2px;
+    border-radius: 999px;
+    background: rgba(27, 27, 27, 0.06);
+    font-family: var(--mono); font-size: 9px;
+}
+.scrub-window-picker button {
+    padding: 4px 9px; border: 0; border-radius: 999px;
+    background: transparent; color: var(--ink-65);
+    font-family: inherit; font-size: 9px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    cursor: pointer; line-height: 1;
+}
+.scrub-window-picker button.active {
+    background: var(--ink); color: var(--bg);
+}
+.scrub-play {
+    width: 28px; height: 28px; flex: 0 0 28px;
+    border: 0; border-radius: 999px;
+    background: var(--ink); color: var(--bg);
+    font-size: 11px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+}
+.scrub-play:hover { transform: translateY(-1px); }
+.scrub-play.is-playing { background: var(--ink); }
+.scrub-live-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 0; border-radius: 999px; cursor: pointer;
+    padding: 5px 10px;
+    font-family: inherit; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    background: rgba(27, 27, 27, 0.06); color: var(--ink-65);
+}
+.scrub-live-pill .scrub-live-dot {
+    width: 7px; height: 7px; border-radius: 999px;
+    background: var(--ink-50);
+}
+.scrub-live-pill.is-live {
+    background: var(--ink); color: var(--bg);
+}
+.scrub-live-pill.is-live .scrub-live-dot {
+    background: #FFB347;
+    box-shadow: 0 0 0 2px rgba(255, 179, 71, 0.25);
+    animation: scrub-live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes scrub-live-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+}
+
+.timeline-strip {
+    position: relative;
+    width: 100%; height: 56px;
+    border-radius: 6px; overflow: hidden;
+    background: var(--ink-08);
+    cursor: pointer;
+    touch-action: none;        /* prevent scroll on drag */
+    user-select: none;
+}
+.timeline-strip:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+/* Skeleton pulse — applied to the root .map-timeline while the first cache
+   fetch is in flight. Removed in timeline.js once real bins are rendered. */
+.map-timeline.is-loading .timeline-strip {
+    animation: timeline-pulse 1.4s ease-in-out infinite;
+}
+@keyframes timeline-pulse {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 0.85; }
+}
+/* 30-day TTL boundary — visible only when the user is showing the full
+   extent. Communicates "data thins out / disappears past here" without a
+   hard line. The extra title is set in timeline.js for hover context. */
+.map-timeline.shows-edge .timeline-strip::before {
+    content: '';
+    position: absolute; top: 0; bottom: 0; left: 0;
+    width: 6%;
+    background: linear-gradient(to right, var(--bg) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 1;
+}
+.timeline-svg {
+    display: block; width: 100%; height: 100%;
+    shape-rendering: crispEdges;
+    pointer-events: none;       /* clicks fall through to the strip */
+}
+.scrub-band {
+    position: absolute; top: 0; bottom: 0;
+    background: rgba(27, 27, 27, 0.18);
+    border-left: 1px solid rgba(27, 27, 27, 0.35);
+    border-right: 1px solid rgba(27, 27, 27, 0.35);
+    min-width: 4px;             /* keep visible even when window is tiny */
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    opacity: 0;
+}
+.map-timeline.is-scrubbed .scrub-band { opacity: 1; }
+.scrub-thumb {
+    position: absolute; top: -3px; bottom: -3px;
+    width: 2px;
+    background: var(--ink);
+    transform: translateX(-50%);
+    pointer-events: none;
+    box-shadow: 0 0 0 1px var(--bg);
+    z-index: 2;
+}
+/* Smooth thumb travel while playback is animating. Disabled while the user
+   is dragging to keep the thumb glued to their pointer. */
+.map-timeline:not(.is-dragging) .scrub-thumb,
+.map-timeline:not(.is-dragging) .scrub-band {
+    transition: left 0.15s linear, width 0.15s linear;
+}
+.scrub-thumb::before, .scrub-thumb::after {
+    content: ''; position: absolute; left: 50%;
+    width: 10px; height: 10px; border-radius: 999px;
+    background: var(--ink);
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 2px var(--bg);
+}
+.scrub-thumb::before { top: -5px; }
+.scrub-thumb::after  { bottom: -5px; }
+.timeline-axis {
+    display: flex; justify-content: space-between;
+    margin-top: 6px;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-50);
+}
+.timeline-empty {
+    padding: 18px 6px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--ink-50);
+    text-align: center;
+}
+
+/* Wind toggle picks up an "is-frozen" class when the user scrubs to a past
+   time — wind data is current-only, so we hide the field and explain why. */
+.wind-toggle.is-frozen {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.wind-toggle.is-frozen::after {
+    content: 'past';
+    margin-left: 6px;
+    font-size: 9px; letter-spacing: 0.06em;
+    color: var(--ink-50);
+}
 .fsa-tooltip .sub { margin-top: 4px; opacity: 0.7; }
 
 /* Wind widget — overlay top-right of the map. Hidden by default; shown only when
@@ -900,6 +1083,19 @@ footer.foot {
     .map-toggles { width: 100%; justify-content: space-between; }
     .window-toggle button { padding: 9px 14px; font-size: 12px; }
     .wind-toggle { padding: 9px 14px; font-size: 12px; }
+    .map-timeline { margin-top: 10px; padding: 10px 12px 8px; }
+    .timeline-strip { height: 44px; }
+    /* Drop the middle "14d" tick on narrow viewports — four labels still
+       give enough orientation across the strip without crowding. */
+    .timeline-axis span:nth-child(2) { display: none; }
+    .scrub-readout { min-width: 0; font-size: 9px; }
+    .scrub-play { width: 32px; height: 32px; flex-basis: 32px; }
+    .scrub-live-pill { padding: 7px 12px; font-size: 11px; }
+    /* Window picker stays visible on phones but wraps to a new row via the
+       header's flex-wrap. Compact paddings keep it from overflowing. */
+    .scrub-window-picker { padding: 1px; }
+    .scrub-window-picker button { padding: 5px 8px; font-size: 9px; }
+    .timeline-meta-right { flex-wrap: wrap; gap: 8px; }
     .stats { grid-template-columns: repeat(2, 1fr); }
     .stat-num { font-size: 28px; }
     .severity-grid { gap: 6px; }

@@ -18,7 +18,7 @@ The `/about` page makes specific privacy promises. Each one is enforced in code 
 | "No analytics or third-party trackers" | No GA / Mixpanel / Meta-pixel scripts in any HTML. CSP in [`server.js`](server.js#L73-L90) blocks third-party `script-src` except Cloudflare Turnstile and unpkg (Leaflet). |
 | "No raw IP — one-way HMAC hash with rotating secret" | [`utils/hash.js:hmacIp`](utils/hash.js) — HMAC-SHA256 with `IP_HASH_SECRET`, truncated to 32 chars. No reverse-mapping is possible without the secret. The secret can be rotated, invalidating all stored hashes. |
 | "No precise location unless you opt in" | [`routes/reports.js`](routes/reports.js) only stores `approxLat`/`approxLng` when (a) GPS is explicitly provided in the request body or (b) the reporter picks an allow-listed major intersection — in which case the server uses that intersection's public-corner coordinates from [`public/data/intersections.json`](public/data/intersections.json). No address-level resolution is possible from either path. The form's `shareLocation` checkbox is unchecked by default. |
-| "Optional precise location is jittered ~100m, deterministically per-day" | [`utils/hash.js:deterministicJitter`](utils/hash.js) — HMAC-derived offset, same per `(ipHash, dayKey)` so volume can't reveal an address. Applies equally to GPS-derived and intersection-derived coords. |
+| "Optional precise location is jittered ~100m, deterministically per-day" | [`utils/hash.js:deterministicJitter`](utils/hash.js) — HMAC-derived offset, same per `(ipHash, dayKey)` so volume can't reveal an address. Applies equally to GPS-derived and intersection-derived coords. The jitter is reseeded daily; the **timeline endpoint deliberately omits coords** (only `/dots`, capped at 7 days, exposes them) so an attacker can't centroid 30 days of jitter samples back to a real address. |
 | "Reports auto-deleted after 30 days" | Firestore TTL on `reports.expiresAt` set in console (see [TTL section](#ttl-policies-required-for-privacy)). `expiresAt` is computed at write-time in [`routes/reports.js`](routes/reports.js). |
 | "Description is scanned for PII before going public" | [`routes/reports.js:flagPii`](routes/reports.js) — regex match for emails / phones / addresses. Hits route the report to `pending-review` status; `/api/reports/recent` only returns `status: 'active'`. |
 | "Severity 0 ('all clear') doesn't pollute the heatmap" | [`routes/reports.js`](routes/reports.js) `/heatmap` subtracts `bySeverity['0']` from each FSA's count; [`routes/alerts.js`](routes/alerts.js) filters `severity > 0` before averaging. |
@@ -135,7 +135,9 @@ The build script reprojects from EPSG:3347 (StatCan Lambert) to WGS84 lat/lng an
 | `GET` | `/api/reports/heatmap?window=24h\|7d\|30d\|all` | `{ counts: { fsa: n } }` |
 | `GET` | `/api/reports/recent?limit=20` | Last N active reports, public-safe fields |
 | `GET` | `/api/reports/dots?window=24h\|7d` | Jittered lat/lng dots for opt-in reports |
+| `GET` | `/api/reports/timeline` | 30-day index for the timeline scrubber. Returns `{ createdAt, fsa, severity, odourType }` per report — **no lat/lng** by design (see Privacy claims). Rate-limited 60/hr/IP. |
 | `GET` | `/api/reports/stats` | `{ today, thisWeek, thisYear, uniqueReportersThisWeek }` |
+| `GET` | `/api/weather/current` | OWM proxy (10-min edge cache) |
 | `GET` | `/api/reports/meta` | Static enums (severity labels, odour types) |
 | `GET` | `/api/config` | Public config: Turnstile site key, kill-switch state |
 

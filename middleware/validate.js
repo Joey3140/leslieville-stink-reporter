@@ -89,6 +89,8 @@ const schemas = {
     dotsQuery: z.object({
         window: z.enum(['24h', '7d']).default('24h'),
     }),
+
+    timelineQuery: z.object({}).strict(),
 };
 
 module.exports = { validate, validateQuery, schemas, SEVERITY_VALUES, POSITIVE_SEVERITY_VALUES, ODOUR_TYPES, WINDOW_VALUES };

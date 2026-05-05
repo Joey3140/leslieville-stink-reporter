@@ -578,7 +578,7 @@
         } else if (mood >= 4) {
             h.innerHTML = `It's bad out there. <em>${positiveToday} report${positiveToday === 1 ? '' : 's'}</em> in the last 24 hours.`;
         } else {
-            h.innerHTML = "Smelled something? <em>Tell the city what 311 won't capture.</em>";
+            h.innerHTML = "Smelled something? <em>Tell the City In Seconds.</em>";
         }
     }
 

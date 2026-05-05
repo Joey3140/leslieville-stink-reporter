@@ -229,7 +229,7 @@
         const headline = isClear ? 'All-clear logged.' : 'Stench logged.';
         const copy = isClear
             ? `Thanks for the all-clear. Logged for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. Helps us track how long these events last.`
-            : `Filed for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. The raccoon nodded gravely. Your report is now part of the live public count — anyone (including Coun. Paula Fletcher's office) can see it on the map.`;
+            : `Filed for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. The raccoon nodded gravely.`;
         formMain.innerHTML = `
             <div style="text-align:center; padding: 32px 0">
                 <div style="display:inline-block; width:180px; height:180px; margin-bottom:24px" id="successRaccoon"></div>

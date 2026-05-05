@@ -154,7 +154,10 @@
         // shrinks below where the thumb sits.
         const pct = pctFor(state.currentTime);
         const bandHalfPct = (state.windowMs / 2) / state.trackExtentMs;
-        elements.thumb.style.left = `${pct * 100}%`;
+        // Inset by half the 10px head-circle width at the extremes so the
+        // circles stay fully inside the strip. At pct=0.5 this resolves to
+        // exactly 50%, so behavior mid-strip is unchanged.
+        elements.thumb.style.left = `calc(${pct * 100}% + ${(0.5 - pct) * 10}px)`;
         elements.band.style.left = `${Math.max(0, pct - bandHalfPct) * 100}%`;
         elements.band.style.width = `${Math.min(1, Math.min(1 - Math.max(0, pct - bandHalfPct), bandHalfPct * 2)) * 100}%`;
         elements.readout.textContent = fmtReadout(state.currentTime, state.isLive);

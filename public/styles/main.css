@@ -405,13 +405,17 @@ section { padding: 32px 48px; }
     pointer-events: none;
     white-space: nowrap;
 }
+/* Anchored top-left below the Leaflet zoom controls so it doesn't collide
+   with the wind widget (top-right). max-width keeps long FSA names from
+   stretching across the map. */
 .fsa-tooltip {
-    position: absolute; top: 16px; right: 16px;
+    position: absolute; top: 80px; left: 16px;
     background: var(--bg); color: var(--ink);
     padding: 12px 14px; border-radius: 10px;
     border: 1px solid var(--ink-12);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    font-family: var(--sans); font-size: 13px; min-width: 160px;
+    font-family: var(--sans); font-size: 13px;
+    min-width: 160px; max-width: calc(100% - 32px);
     z-index: 500; pointer-events: none;
     opacity: 0; transition: opacity .15s ease;
 }

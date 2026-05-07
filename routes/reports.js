@@ -7,6 +7,7 @@ const { createRateLimit } = require('../middleware/rate-limit');
 const { turnstileMiddleware } = require('../middleware/turnstile');
 const { createChild } = require('../utils/logger');
 const { asyncHandler } = require('../utils/async-handler');
+const { flagProfanity } = require('../utils/profanity');
 
 const router = express.Router();
 const log = createChild('routes.reports');
@@ -120,6 +121,23 @@ router.post('/',
 
         const reviewFlags = flagPii(data.description);
         const status = reviewFlags.length > 0 ? 'pending-review' : 'active';
+
+        // Profanity/slur filter is independent of PII review. Free-text comments
+        // matching the curated list (utils/profanity.js) get the description
+        // stripped on storage — the rating still counts toward FSA volume,
+        // severity, and the heatmap, but no offensive comment is ever stored or
+        // surfaced via /recent. Only applied to non-pending-review reports;
+        // PII-flagged reports keep their description for moderator review and
+        // are hidden from /recent anyway by the status filter.
+        let storedDescription = data.description;
+        if (status === 'active' && data.description) {
+            const profanityFlags = flagProfanity(data.description);
+            if (profanityFlags.length > 0) {
+                storedDescription = undefined;
+                log.info({ flags: profanityFlags, fsa: data.fsa }, 'description stripped — profanity/slur match');
+            }
+        }
+
         // expiresAt drives Firestore TTL. Set TTL policy on `reports.expiresAt` in console.
         // After 30d the entire report is auto-deleted (drops ipHash, userAgent, description).
         const expiresAt = new Date(now.getTime() + REPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
@@ -138,7 +156,7 @@ router.post('/',
         };
         // odourType is optional — only stored when the reporter picked one.
         if (data.odourType) report.odourType = data.odourType;
-        if (data.description) report.description = data.description;
+        if (storedDescription) report.description = storedDescription;
         if (data.intersection) report.intersection = data.intersection;
         if (data.approxLat != null) {
             // Deterministic jitter: same reporter (ipHash) on same day always lands on the same

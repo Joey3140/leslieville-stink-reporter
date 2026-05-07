@@ -16,6 +16,17 @@ const log = createChild('routes.subscribers');
 
 const SEV_LABEL = { 1: 'Faint', 3: 'Strong', 5: 'Overwhelming' };
 
+// Confirm tokens expire 7 days after issue. Without this, a confirmation
+// link mailed months ago still works — anyone who later gains read access to
+// an old inbox can flip a long-stale subscription to active.
+const CONFIRM_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// Per-email cooldown on confirmation re-sends. The 3/hour subscribe rate
+// limit is per-IP, so an attacker with a fresh Turnstile token from a
+// residential IP could otherwise trigger up to 3 confirmation emails per
+// hour to any victim address. With this cooldown the same address gets at
+// most one confirmation email every 5 minutes regardless of source IP.
+const CONFIRM_RESEND_COOLDOWN_MS = 5 * 60 * 1000;
+
 const subscribeLimiter = createRateLimit({
     max: 3, windowMs: 60 * 60 * 1000, bucket: 'subscribe',
     message: 'Too many subscribe attempts from this IP, please try again later',
@@ -37,6 +48,25 @@ router.post('/',
         let docRef;
         let unsubscribeToken;
         const now = new Date();
+
+        // Per-email confirm-resend cooldown. Bail BEFORE writing pendingFsas
+        // or generating a new confirmToken — otherwise a flood of subscribe
+        // calls from rotating IPs could repeatedly stash pendingFsas and burn
+        // Firestore writes against a victim's record without ever mailing
+        // them. The response shape is identical to a normal accept so the
+        // existence of the email is not exposed.
+        //
+        // Scoped to status==='pending' so a user who confirmed-then-unsubscribed
+        // (or confirmed-then-resubscribed within 5 min) doesn't hit a stale
+        // cooldown driven by a confirmTokenIssuedAt left behind from earlier
+        // in the lifecycle. Active and unsubscribed users always proceed.
+        if (!existing.empty && existing.docs[0].data().status === 'pending') {
+            const lastIssuedAt = existing.docs[0].data().confirmTokenIssuedAt?.toDate?.();
+            if (lastIssuedAt && (now.getTime() - lastIssuedAt.getTime()) < CONFIRM_RESEND_COOLDOWN_MS) {
+                log.info({ id: existing.docs[0].id }, 'subscribe deduped — confirm cooldown active');
+                return res.json({ ok: true, message: 'Check your email for a confirmation link.' });
+            }
+        }
 
         if (!existing.empty) {
             // Existing record. Behaviour depends on current status:
@@ -115,7 +145,7 @@ router.get('/confirm',
         const { token } = req.validatedQuery;
         const snap = await db.collection(COLLECTIONS.subscribers)
             .where('confirmToken', '==', token).limit(1).get();
-        if (snap.empty) {
+        if (snap.empty || isConfirmTokenExpired(snap.docs[0].data())) {
             return res.status(404).send(htmlPage('Link expired or invalid', 'This confirmation link has already been used or has expired. <a href="/subscribe">Subscribe again</a>.'));
         }
         res.send(htmlActionPage({
@@ -137,7 +167,7 @@ router.post('/confirm',
         const { token } = req.validated;
         const snap = await db.collection(COLLECTIONS.subscribers)
             .where('confirmToken', '==', token).limit(1).get();
-        if (snap.empty) {
+        if (snap.empty || isConfirmTokenExpired(snap.docs[0].data())) {
             return res.status(404).send(htmlPage('Link expired or invalid', 'This confirmation link has already been used or has expired. <a href="/subscribe">Subscribe again</a>.'));
         }
         const doc = snap.docs[0];
@@ -218,6 +248,16 @@ router.post('/unsubscribe',
         res.json({ ok: true });
     })
 );
+
+// Treats a confirmToken as expired once CONFIRM_TOKEN_TTL_MS has passed since
+// it was issued. Records missing `confirmTokenIssuedAt` (legacy rows from
+// before this rollout) are treated as not-expired so existing pending
+// subscribers can still confirm.
+function isConfirmTokenExpired(data) {
+    const issuedAt = data?.confirmTokenIssuedAt?.toDate?.();
+    if (!issuedAt) return false;
+    return (Date.now() - issuedAt.getTime()) > CONFIRM_TOKEN_TTL_MS;
+}
 
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

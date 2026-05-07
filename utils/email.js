@@ -2,8 +2,19 @@ const fs = require('fs');
 const path = require('path');
 const { Resend } = require('resend');
 const { createChild } = require('./logger');
+const { hashEmail } = require('./hash');
 
 const log = createChild('email');
+
+// Never log the raw recipient — Vercel runtime logs are retained and visible
+// to project members, which would undercut the AES-GCM-at-rest privacy
+// posture for subscriber addresses. A 12-char prefix of the email's SHA-256
+// is enough to correlate "email sent" with "email send failed" in support
+// triage without exposing the address itself.
+function toHash(addr) {
+    if (!addr || typeof addr !== 'string') return undefined;
+    return hashEmail(addr).slice(0, 12);
+}
 
 let cachedClient = null;
 function getClient() {
@@ -44,7 +55,7 @@ function render(template, data) {
 async function send({ to, subject, template, data, replyTo }) {
     const client = getClient();
     if (!client) {
-        log.info({ to, subject, template }, 'email send skipped (no RESEND_API_KEY)');
+        log.info({ toHash: toHash(to), subject, template }, 'email send skipped (no RESEND_API_KEY)');
         return { skipped: true };
     }
     const html = render(loadTemplate(template), data);
@@ -56,10 +67,10 @@ async function send({ to, subject, template, data, replyTo }) {
             html,
             replyTo: replyTo || undefined,
         });
-        log.info({ to, subject, template, id: result?.data?.id }, 'email sent');
+        log.info({ toHash: toHash(to), subject, template, id: result?.data?.id }, 'email sent');
         return result;
     } catch (err) {
-        log.error({ err, to, subject, template }, 'email send failed');
+        log.error({ err, toHash: toHash(to), subject, template }, 'email send failed');
         throw err;
     }
 }

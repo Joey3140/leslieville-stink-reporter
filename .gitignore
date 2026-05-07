@@ -19,3 +19,7 @@ build/
 *-firebase-adminsdk-*.json
 firebase-key.json
 service-account.json
+
+# Local connectivity / smoke-test scripts — kept out of the repo so a
+# personal address or test recipient never lands in git history.
+scripts/test-*.js

@@ -1,7 +1,19 @@
+const crypto = require('crypto');
 const { createChild } = require('../utils/logger');
 const { hmacIp, getClientIp } = require('../utils/hash');
 
 const log = createChild('cron-auth');
+
+// Constant-time string compare. Length-equality short-circuit is required —
+// timingSafeEqual throws when buffers differ in length, and the throw itself
+// is observable. Returning `false` on a length mismatch is safe because the
+// secret length is fixed (random 32-byte hex from `openssl rand -hex 32`).
+function safeEqualStr(a, b) {
+    const ab = Buffer.from(a);
+    const bb = Buffer.from(b);
+    if (ab.length !== bb.length) return false;
+    return crypto.timingSafeEqual(ab, bb);
+}
 
 // Vercel cron hits the path with no Bearer by default. We require explicit auth so the
 // endpoint isn't world-callable. Configure CRON_SECRET in env, then in Vercel project
@@ -14,7 +26,7 @@ function cronAuth(req, res, next) {
     }
     const auth = req.headers.authorization || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (token !== expected) {
+    if (!safeEqualStr(token, expected)) {
         // Hash the IP before logging — preserves the public "no raw IP" promise.
         log.warn({ path: req.path, ipHashShort: hmacIp(getClientIp(req)).slice(0, 8) }, 'cron auth rejected');
         return res.status(401).json({ error: 'Unauthorized' });

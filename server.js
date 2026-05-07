@@ -34,6 +34,27 @@ if (process.env.NODE_ENV === 'production' && !process.env.SUBSCRIBER_EMAIL_KEY) 
     process.exit(1);
 }
 
+// Without TURNSTILE_SECRET_KEY the captcha middleware silently passes every
+// request (the dev-mode bypass). That would let bots flood /api/reports and
+// /api/subscribers — refuse to start rather than serve an unprotected submit
+// path in production.
+if (process.env.NODE_ENV === 'production' && !process.env.TURNSTILE_SECRET_KEY) {
+    log.fatal('TURNSTILE_SECRET_KEY must be set in production — refusing to start.');
+    process.exit(1);
+}
+
+// IP_HASH_SECRET is the HMAC key behind every ipHash in the database
+// (rate-limit buckets, dedup, deterministic-jitter seeds). Without it,
+// utils/hash.js falls back to a hardcoded "fallback:" prefix — which is
+// equivalent to publishing the hash, since anyone reading the source can
+// pre-compute it for any IP. Refuse to start so the privacy claim in the
+// README ("rotating secret, no reverse-mapping possible") holds in prod.
+if (process.env.NODE_ENV === 'production'
+    && (!process.env.IP_HASH_SECRET || process.env.IP_HASH_SECRET.length < 16)) {
+    log.fatal('IP_HASH_SECRET must be set (≥16 chars) in production — refusing to start.');
+    process.exit(1);
+}
+
 // Lenient parse: tolerates trailing whitespace, newlines, or stray characters that
 // commonly appear when pasting a long JSON blob into a hosting provider's env-var UI.
 // Walks the string once, returns the first balanced top-level object.
@@ -85,7 +106,13 @@ if (!admin.apps.length) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.set('trust proxy', true);
+// Vercel terminates exactly one hop in front of the function (its edge), so
+// trust the first proxy only. The previous `true` accepted arbitrarily long
+// X-Forwarded-For chains, which is fine on Vercel (their edge rewrites the
+// header) but a foot-gun if this is ever deployed behind a chain that doesn't
+// sanitize XFF — an attacker could rotate the rate-limit bucket on every
+// request by prepending fake hops.
+app.set('trust proxy', 1);
 
 app.use(helmet({
     contentSecurityPolicy: {
@@ -106,7 +133,19 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false,
 }));
 
-app.use(cors({ origin: true, credentials: false }));
+// In prod, only allow XHR from our own deploy origin. The site has no auth
+// and `credentials: false`, so this is mostly cosmetic — but it stops a
+// third-party page from quietly reading the public JSON endpoints under our
+// origin and presenting it as theirs. In dev we keep `true` so localhost,
+// preview deploys, and curl all keep working.
+//
+// Strip a trailing slash off PUBLIC_BASE_URL — browsers send `Origin` without
+// one, and an env var with `https://example.com/` would cause every
+// cross-origin fetch to be rejected against `https://example.com`.
+const corsOrigin = process.env.NODE_ENV === 'production'
+    ? ((process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '') || false)
+    : true;
+app.use(cors({ origin: corsOrigin, credentials: false }));
 app.use(express.json({ limit: '128kb' }));
 // Tight 8kb cap for form posts — only used by the confirm/unsubscribe HTML pages,
 // which submit a single token field. Prevents a misuse vector while keeping the
@@ -141,6 +180,16 @@ app.use('/api/cron', alertsRoutes);
 
 const weatherRoutes = require('./routes/weather');
 app.use('/api/weather', weatherRoutes);
+
+// Hide design-iteration preview pages in production. They're harmless on
+// their own (no data, no APIs) but ship dev scaffolding to anyone poking
+// around — exactly the kind of thing a hostile reader screenshots to argue
+// the site is unfinished. Local/preview deploys still see them.
+if (process.env.NODE_ENV === 'production') {
+    app.get(['/preview', '/preview-nav', '/preview-nav.html', '/preview/*'], (req, res) => {
+        res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
+    });
+}
 
 app.use(express.static(path.join(__dirname, 'public'), {
     extensions: ['html'],

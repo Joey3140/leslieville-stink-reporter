@@ -23,3 +23,32 @@ service-account.json
 # Local connectivity / smoke-test scripts — kept out of the repo so a
 # personal address or test recipient never lands in git history.
 scripts/test-*.js
+
+# === Harness-injected (private to local machine) ===
+.claude/
+.codex/
+.agents/
+.husky/
+.ai-codex/
+.harness-version
+harness-config.json
+codex-config.json
+dashboard.html
+*.pre-harness
+*.pre-update
+__tests__/golden/
+tools/dashboard.html
+tools/serve-dashboard.sh
+tools/ticket-dashboard.js
+scripts/build-codex.js
+scripts/env-backup.sh
+scripts/golden-capture.js
+scripts/golden-compare.js
+scripts/sync-session-state.sh
+tests/e2e/
+project/CLAUDE.md
+project/SESSION_STATE.md
+project/sessions/
+project/sprints/
+project/tickets/
+# === End Harness-injected ===

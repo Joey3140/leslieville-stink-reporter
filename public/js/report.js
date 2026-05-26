@@ -230,6 +230,10 @@
         const copy = isClear
             ? `Thanks for the all-clear. Logged for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. Helps us track how long these events last.`
             : `Filed for <strong>${escapeHtml(fsa)}</strong> at ${escapeHtml(time)}. The raccoon nodded gravely.`;
+        const callout = isClear ? '' : `
+                <p style="max-width:480px; margin: 24px auto 0; font-size:14px; opacity:0.85">
+                    Want faster response? Call the 24/7 odour line at <a href="tel:+14163925153"><strong>(416) 392-5153</strong></a> — a technician answers, logs the complaint, checks the wind, and follows up within two days.
+                </p>`;
         formMain.innerHTML = `
             <div style="text-align:center; padding: 32px 0">
                 <div style="display:inline-block; width:180px; height:180px; margin-bottom:24px" id="successRaccoon"></div>
@@ -238,7 +242,7 @@
                 <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap">
                     <a href="/" class="btn btn-primary">See the map</a>
                     <a href="/report" class="btn btn-secondary">File another</a>
-                </div>
+                </div>${callout}
             </div>`;
         renderRaccoon(document.getElementById('successRaccoon'), sevForRaccoon);
     }

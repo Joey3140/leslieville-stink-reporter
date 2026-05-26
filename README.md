@@ -192,7 +192,7 @@ Verify after deploy: `curl -X POST https://leslieville-stink-reporter.vercel.app
 - **v0.1** — reporting + heatmap + recent feed + stats + map dots ✅
 - **v0.5** — fresh-eyes findings applied (CSP hardened, deterministic jitter, IP-hash retention via TTL, dedup spoofing prevention, GPS-outside-FSA rejection) ✅
 - **v0.9 (this commit)** — email alerts subsystem (Resend, double opt-in, cron-triggered with cooldown + daily cap circuit breaker, one-click unsubscribe) ✅
-- **v1.0** — Claude Design output applied to UI; Cloudflare Turnstile + Resend + Firebase keys wired; deployed to Vercel
+- **v1.0** — full UI design system applied; Cloudflare Turnstile + Resend + Firebase keys wired; deployed to Vercel
 - **v1.1** — custom sending domain (SPF/DKIM/DMARC), weekly digest, photo uploads, admin moderation UI
 
 ---

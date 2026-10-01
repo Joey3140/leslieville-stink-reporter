@@ -52,3 +52,6 @@ project/sessions/
 project/sprints/
 project/tickets/
 # === End Harness-injected ===
+
+# Secrets — auto-added by Harness
+.env.*

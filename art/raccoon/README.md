@@ -60,3 +60,11 @@ public data. Add `?mood=1` to `5` on the dashboard to see any state on the real 
 - Render settings use the Standard view transform so the set matches the page colours.
 - Clouds must stay behind the character and bin, or they tint the fur green.
 - The status bar overlaps the bottom of the hero card, so keep the feet above it.
+- Paws are as dark as the nose. In mood 4 they merge into one big snout if they get any
+  closer, and past 35 degrees the arms cross and the paws slide apart. Mood 3's sweep stops
+  short of the muzzle for the same reason.
+- Moods 3 and 4 need long arms (`scale` 1.46 or more), or the paws stop under the chin.
+- Mood 5's bounce must peak at full stride. The other way round, its feet float and its
+  rump hits the floor.
+- Blender's frames are cheap to test. Render a single frame at `--res 480 --samples 10`
+  (about 30 seconds) before committing to a 25-minute mood.

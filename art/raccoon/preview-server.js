@@ -30,8 +30,7 @@ function api(req, res, url) {
     const key = url.pathname + url.search;
     const hit = fixtures[key] || Object.entries(fixtures).find(([k]) => k.split('?')[0] === url.pathname)?.[1];
     let body = hit ? hit.body : '{}';
-    const referer = req.headers.referer ? new URL(req.headers.referer) : null;
-    const mood = referer && Number(referer.searchParams.get('mood'));
+    const mood = Number(/previewMood=(\d)/.exec(req.headers.cookie || '')?.[1]);
     if (url.pathname === '/api/reports/stats' && mood >= 1 && mood <= 5) {
         const s = JSON.parse(body);
         s.clearCheckInsToday = 0;
@@ -49,6 +48,11 @@ function sendFile(req, res, file) {
             return res.end('Not found');
         }
         const headers = { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'accept-ranges': 'bytes', 'content-security-policy': csp, 'referrer-policy': 'no-referrer' };
+        // The site sends no referrer, so ?mood= reaches the stats call through a cookie.
+        if (path.basename(file) === 'index.html') {
+            const m = new URL(req.url, 'http://localhost').searchParams.get('mood');
+            headers['set-cookie'] = `previewMood=${/^[1-5]$/.test(m) ? m : 0}; Path=/; SameSite=Lax`;
+        }
         const range = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '');
         if (range) {
             const start = Number(range[1]);

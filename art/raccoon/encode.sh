@@ -5,7 +5,7 @@ pass=$1; stills=$2
 here=$(cd "$(dirname "$0")" && pwd)
 dest="$here/../../public/raccoon"
 mkdir -p "$dest"
-declare -A poster=([1]=0 [2]=12 [3]=20 [4]=20 [5]=8)
+declare -A poster=([1]=0 [2]=12 [3]=12 [4]=20 [5]=8)
 for m in 1 2 3 4 5; do
   d="$pass/m$m"
   [ "$(ls "$d" 2>/dev/null | wc -l)" = "96" ] || { echo "m$m incomplete: $(ls "$d" 2>/dev/null | wc -l)"; continue; }

@@ -44,7 +44,7 @@
         video.setAttribute('role', 'img');
         video.setAttribute('aria-label', DESCRIPTIONS[m]);
         video.disablePictureInPicture = true;
-        for (const [ext, type] of [['webm', 'video/webm'], ['mp4', 'video/mp4']]) {
+        for (const [ext, type] of [['mp4', 'video/mp4'], ['webm', 'video/webm']]) {
             const source = document.createElement('source');
             source.src = `/raccoon/hero-m${m}.${ext}`;
             source.type = type;

@@ -37,7 +37,7 @@ Files in `out/` aren't committed.
 The share image is a wide render with the title set over it in the site's own fonts:
 
 ```sh
-blender -b -P art/raccoon/build.py -- --mood 3 --frames 96 --frame 40 --res 630 --samples 32 --fur 1 --shot share --out /tmp/share.png
+blender -b -P art/raccoon/build.py -- --mood 3 --frames 96 --frame 12 --res 630 --samples 32 --fur 1 --shot share --out /tmp/share.png
 node art/raccoon/share-card.js /tmp/share.png     # needs the preview server running
 ```
 

@@ -772,15 +772,21 @@ _c.operation = "MULTIPLY"
 _c.inputs[1].default_value = 0.24
 _n.links.new(_lw.outputs["Facing"], _a.inputs[1])
 _n.links.new(_a.outputs[0], _b.inputs[0])
+_oi = _n.nodes.new("ShaderNodeObjectInfo")
+_d = _n.nodes.new("ShaderNodeMath")
+_d.operation = "MULTIPLY"
+_d.name = "fade"
 _n.links.new(_b.outputs[0], _c.inputs[0])
-_n.links.new(_c.outputs[0], _m.inputs[0])
+_n.links.new(_c.outputs[0], _d.inputs[0])
+_n.links.new(_oi.outputs["Alpha"], _d.inputs[1])
+_n.links.new(_d.outputs[0], _m.inputs[0])
 _n.links.new(_t.outputs[0], _m.inputs[1])
 _n.links.new(_e.outputs[0], _m.inputs[2])
 _n.links.new(_m.outputs[0], _o.inputs["Surface"])
 M_WISP = M_CLOUD.copy()
 M_WISP.name = "wisp"
 for _node in M_WISP.node_tree.nodes:
-    if _node.type == "MATH" and _node.operation == "MULTIPLY":
+    if _node.type == "MATH" and _node.operation == "MULTIPLY" and _node.name != "fade":
         _node.inputs[1].default_value = 0.34
     if _node.type == "MATH" and _node.operation == "POWER":
         _node.inputs[1].default_value = 2.2
@@ -901,8 +907,9 @@ def update_clouds(t):
             ob.location = (cx_ - 1.0 * u + 0.5, cy_, z0 + 1.5 * u)
         else:
             ob.location = (cx_ + 0.14 * math.sin(math.tau * (u + ph)), cy_, z0 + 1.7 * u)
-        r = size * (0.55 + 0.75 * u) * fade + 0.001
+        r = size * (0.7 + 0.6 * u) + 0.001
         ob.scale = (r, r, r * 0.86)
+        ob.color = (1, 1, 1, fade)
 
 
 if args.mood == 5:
@@ -1035,13 +1042,15 @@ def pose(mood, t):
         ears["R"].rotation_euler = (rad(-16 * pulse(t, 0.08, 0.04)), rad(14), 0)
         set_tail(sway(8))
     elif mood == 3:
-        fan = wave(4)
+        fan = wave(6)
         head.rotation_euler = (rad(4 + wave(2)), rad(-6), rad(15))
-        arms["L"].rotation_euler = (rad(-111 + 7 * fan), 0, rad(38 + 15 * fan))
-        arms["L"].scale = (1, 1, 1.2)
+        # Needs mood 4's arm reach, or the paw stops under the chin. The sweep ends
+        # short of the muzzle: any further and the paw reads as a giant nose.
+        arms["L"].rotation_euler = (rad(-121 + 5 * fan), 0, rad(-8 + 15 * fan))
+        arms["L"].scale = (1, 1, 1.46)
         blink = pulse(t, 0.55, 0.03)
         for s in "LR":
-            set_eye(s, 46 + 44 * blink, 24 + 66 * blink, look=(-10, -3))
+            set_eye(s, 68 + 22 * blink, 46 + 44 * blink, look=(-10, -3))
         ears["L"].rotation_euler = (rad(12), rad(-34), 0)
         ears["R"].rotation_euler = (rad(12), rad(34), 0)
         set_tail(sway(12, 2))
@@ -1049,9 +1058,11 @@ def pose(mood, t):
         shake = wave(8)
         body.rotation_euler = (rad(9), 0, rad(1.1 * shake))
         head.rotation_euler = (rad(4), 0, rad(1.5 * shake))
-        arms["L"].rotation_euler = (rad(-110), 0, rad(35))
-        arms["R"].rotation_euler = (rad(-110), 0, rad(-35))
-        arms["L"].scale = arms["R"].scale = (1, 1, 1.46)
+        # The paws are as dark as the nose. Any closer and they merge into one big snout;
+        # past 35 degrees the arms cross, and the paws slide apart onto the cheeks.
+        arms["L"].rotation_euler = (rad(-116), 0, rad(32))
+        arms["R"].rotation_euler = (rad(-116), 0, rad(-32))
+        arms["L"].scale = arms["R"].scale = (1, 1, 1.5)
         for s, sx in (("L", -1), ("R", 1)):
             set_eye(s, 80, 62, look=(0, 6))
             arcs[s].rotation_euler = (0, 0, 0)
@@ -1139,6 +1150,8 @@ sc.cycles.denoiser = "OPENIMAGEDENOISE"
 sc.cycles.seed = 7
 sc.cycles.max_bounces = 6
 sc.cycles.transmission_bounces = 4
+# Overlapping gas needs many see-through layers. Too few and they turn into hard dark shapes.
+sc.cycles.transparent_max_bounces = 64
 sc.cycles.volume_bounces = 0
 sc.cycles.caustics_reflective = False
 sc.cycles.caustics_refractive = False

@@ -123,7 +123,7 @@ app.use(helmet({
             'script-src': ["'self'", 'https://challenges.cloudflare.com', 'https://unpkg.com'],
             // 'unsafe-inline' kept for style-src because Leaflet writes inline styles on map tiles.
             'style-src': ["'self'", "'unsafe-inline'", 'https://unpkg.com', 'https://fonts.googleapis.com'],
-            'img-src': ["'self'", 'data:', 'https://*.tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com'],
+            'img-src': ["'self'", 'data:', 'https://server.arcgisonline.com'],
             // unpkg.com allowed for Leaflet sourcemap fetches; no real connect traffic.
             'connect-src': ["'self'", 'https://challenges.cloudflare.com', 'https://unpkg.com'],
             'frame-src': ["'self'", 'https://challenges.cloudflare.com'],

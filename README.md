@@ -32,7 +32,7 @@ The `/about` page makes specific privacy promises. Each one is enforced in code 
 
 - Node.js 22.x · Express · vanilla JS frontend (no build step)
 - Firestore (Firebase Admin SDK) · Pino · Zod
-- Leaflet + CARTO/OSM tiles · static FSA GeoJSON
+- Leaflet + Esri light gray tiles · static FSA GeoJSON
 - Cloudflare Turnstile (free, no signup) · Resend (email alerts, v1.1)
 - Vercel serverless
 
@@ -208,3 +208,7 @@ Verify after deploy: `curl -X POST https://leslieville-stink-reporter.vercel.app
 Forks must keep this license + the attribution notice. **Commercial use** (selling, paid-SaaS hosting, building a paid product on top) requires a separate license — contact the author.
 
 Copyright © 2026 Joey Drury. Required notice (per license): `Copyright (c) 2026 Joey Drury — https://www.leslievillestench.com`
+
+## Change notes
+
+- 2026-11-01: Switched the base map from CARTO to Esri's light gray canvas (`public/js/map.js`, CSP `img-src` in `server.js`). CARTO's free tiles had started overprinting "API KEY REQUIRED" across the map, hiding the streets. Esri needs no API key and requires the attribution shown on the map.

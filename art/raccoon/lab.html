@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raccoon preview</title>
+<style>
+  :root { --bg: #FAF7F2; --ink: #1B1B1B; --mute: #6B665F; --rule: rgba(27, 27, 27, .12); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 40px 20px 72px; }
+  h1 { font-size: 34px; line-height: 1.1; margin: 0 0 8px; }
+  h2 { font-size: 21px; margin: 44px 0 6px; }
+  p { margin: 0 0 14px; color: var(--mute); max-width: 68ch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+  .state { background: #fff; border: 1px solid var(--rule); border-radius: 18px; overflow: hidden; }
+  .state video, .state img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+  .state div { padding: 12px 16px 16px; }
+  .state b { display: block; font-size: 17px; }
+  .state span { color: var(--mute); font-size: 14px; }
+  .state a { display: inline-block; margin-top: 6px; color: #8E331C; font-size: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; margin-top: 16px; }
+  .chip { background: #fff; border: 1px solid var(--rule); border-radius: 14px; padding: 10px; text-align: center; font-size: 13px; color: var(--mute); }
+  .chip img { display: block; margin: 0 auto 6px; }
+  ul { padding-left: 20px; color: var(--mute); }
+  li a { color: #8E331C; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Raccoon redesign: all states</h1>
+  <p>Local preview only. Nothing here is live. Each clip is a four-second seamless loop rendered in Blender. The scene colours match the site's mood colours.</p>
+
+  <div class="grid" id="states"></div>
+
+  <h2>Small sizes</h2>
+  <p>Report buttons, the About card, the Send button, and the logo in the header and browser tab.</p>
+  <div class="row" id="icons"></div>
+  <div class="row" id="faces"></div>
+
+  <h2>On the real pages</h2>
+  <p>These use a saved copy of the site's public data, so the map and reports look real without touching the live site.</p>
+  <ul id="links"></ul>
+</main>
+<script>
+  const STATES = [
+    [1, 'All clear', 'Napping by the green bin with a slice of pizza. No reports today.'],
+    [2, 'Faint', 'Awake and sniffing the air. A few reports.'],
+    [3, 'Noticeable', 'Squinting and waving it away, with gas drifting in.'],
+    [4, 'Strong', 'Pinching its nose and crying.'],
+    [5, 'Overwhelming', 'Gas mask on, running from the tipped bin.'],
+  ];
+  document.getElementById('states').innerHTML = STATES.map(([m, name, text]) => `
+    <section class="state">
+      <video autoplay muted loop playsinline poster="/raccoon/hero-m${m}.webp">
+        <source src="/raccoon/hero-m${m}.webm" type="video/webm">
+        <source src="/raccoon/hero-m${m}.mp4" type="video/mp4">
+      </video>
+      <div><b>${m}. ${name}</b><span>${text}</span><br><a href="/?mood=${m}">See it on the dashboard</a></div>
+    </section>`).join('');
+  document.getElementById('icons').innerHTML = STATES.map(([m, name]) => `<div class="chip"><img src="/raccoon/icon-m${m}.webp" width="92" height="92" alt="">${name}</div>`).join('');
+  document.getElementById('faces').innerHTML = STATES.map(([m, name]) => `<div class="chip"><img src="/raccoon/face-m${m}.webp" width="40" height="40" alt="">${name}</div>`).join('')
+    + '<div class="chip"><img src="/raccoon/favicon-64.png" width="32" height="32" alt="">Browser tab</div>';
+  document.getElementById('links').innerHTML = [['/', 'Dashboard'], ['/report', 'Report a smell'], ['/subscribe', 'Alerts'], ['/about', 'About']]
+    .map(([href, name]) => `<li><a href="${href}">${name}</a></li>`).join('');
+</script>
+</body>
+</html>

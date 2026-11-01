@@ -108,8 +108,9 @@
             return `<rect x="${i}" y="${100 - h}" width="1" height="${h}" fill="${colorFor(n)}" />`;
         }).join('');
         elements.svg.setAttribute('viewBox', `0 0 ${visibleBins} 100`);
-        elements.svg.innerHTML = `<rect x="0" y="0" width="${visibleBins}" height="100" fill="var(--ink-08)" />${bars}`;
+        elements.svg.innerHTML = bars;
         const visibleTotal = visible.reduce((a, b) => a + b, 0);
+        elements.quiet.hidden = visibleTotal > 0;
         const peakLabel = max > 1 ? ` · peak ${max}/h` : '';
         elements.total.textContent = `${visibleTotal} report${visibleTotal === 1 ? '' : 's'} in view${peakLabel} (30d total: ${total})`;
         renderAxis();
@@ -376,6 +377,7 @@
             </header>
             <div class="timeline-strip" role="slider" tabindex="0" aria-label="Scrub through report history" aria-valuemin="0" aria-valuemax="100" title="Reports auto-delete after 30 days">
                 <svg class="timeline-svg" viewBox="0 0 ${HOURS} 100" preserveAspectRatio="none" aria-hidden="true" focusable="false"></svg>
+                <div class="timeline-quiet" aria-hidden="true" hidden>No reports in this window</div>
                 <div class="scrub-band" aria-hidden="true"></div>
                 <div class="scrub-thumb" aria-hidden="true"></div>
             </div>
@@ -385,6 +387,7 @@
             root,
             svg: root.querySelector('svg.timeline-svg'),
             strip: root.querySelector('.timeline-strip'),
+            quiet: root.querySelector('.timeline-quiet'),
             thumb: root.querySelector('.scrub-thumb'),
             band: root.querySelector('.scrub-band'),
             readout: root.querySelector('.scrub-readout'),

@@ -28,14 +28,14 @@
     sevButtons.forEach((btn) => {
         const slot = btn.querySelector('.sev-btn-icon');
         const mood = Number(slot.dataset.raccoonMood);
-        renderRaccoon(slot, mood);
+        renderRaccoon(slot, mood, { decorative: true });
     });
 
     // Lake wave at bottom — start at calm; will deepen if user picks high severity.
     renderLakeWave(document.getElementById('lakeWave'), 1);
 
     // Render a tiny raccoon next to the submit button label
-    renderRaccoon(document.getElementById('submitRaccoon'), 2);
+    renderRaccoon(document.getElementById('submitRaccoon'), 2, { size: 'face', decorative: true });
 
     description.addEventListener('input', () => {
         const n = description.value.length;
@@ -98,7 +98,7 @@
             renderLakeWave(document.getElementById('lakeWave'), severity);
             // Update submit-button raccoon — sev=0 ("all clear") shows mood-1 (sleeping).
             const submitMood = severity === 0 ? 1 : Math.max(1, Math.min(5, severity));
-            renderRaccoon(document.getElementById('submitRaccoon'), submitMood);
+            renderRaccoon(document.getElementById('submitRaccoon'), submitMood, { size: 'face', decorative: true });
             updateSubmitState();
         });
     });

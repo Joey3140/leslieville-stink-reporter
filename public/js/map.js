@@ -1,6 +1,6 @@
 (function () {
     const { getJson, formatTimeAgo, SEV_LABEL, TYPE_LABEL } = window.LSV;
-    const { renderRaccoon, severityToMood, autoBlinkRaccoon, renderLakeWave } = window.LSV;
+    const { renderRaccoon, renderLakeWave } = window.LSV;
 
     // ── Map setup ──────────────────────────────────────────────────────────
     // v1.3: tightened to a 7-FSA cluster around Leslieville. M4M+M4L+M4E in the middle,
@@ -27,7 +27,10 @@
     const TILE_OPTS = { maxZoom: 17, maxNativeZoom: 16 };
     L.tileLayer(ESRI + 'Base/MapServer/tile/{z}/{y}/{x}', {
         ...TILE_OPTS,
-        attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+        // The long credit wraps to two lines on phones and covers the legend.
+        attribution: window.innerWidth < 600
+            ? 'Tiles &copy; Esri, &copy; OpenStreetMap'
+            : 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
     }).addTo(map);
     L.tileLayer(ESRI + 'Reference/MapServer/tile/{z}/{y}/{x}', TILE_OPTS).addTo(map);
 
@@ -511,8 +514,7 @@
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3);
         if (!ranked.length) {
-            el.innerHTML = '<span class="area-prefix">Last 24h</span><span class="area-pill"><span class="area-dot" style="--c:'
-                + HEAT_RAMP[0] + '"></span>No smelly areas</span>';
+            el.innerHTML = '<span class="area-prefix">Last 24h</span><span class="area-pill"><span class="area-dot" style="--c:#4F8A5A"></span>No smelly areas</span>';
             return;
         }
         const pills = ranked.map(([fsa, n]) =>
@@ -555,7 +557,7 @@
             else if (positiveToday <= 10) mood = 3;
             else if (positiveToday <= 30) mood = 4;
             else mood = 5;
-            renderRaccoon(document.getElementById('raccoonCard'), mood);
+            renderRaccoon(document.getElementById('raccoonCard'), mood, { size: 'hero' });
             updateHeadline(positiveToday, clearToday, mood);
             updateMoodLabel(mood);
             renderLakeWave(document.getElementById('lakeWave'), mood);
@@ -566,7 +568,7 @@
             eyebrow.textContent = `Today's Stench Report · ${today_str}`;
         } catch (err) {
             console.error('stats failed', err);
-            renderRaccoon(document.getElementById('raccoonCard'), 1);
+            renderRaccoon(document.getElementById('raccoonCard'), 1, { size: 'hero' });
             updateMoodLabel(1);
             renderLakeWave(document.getElementById('lakeWave'), 1);
         }
@@ -732,7 +734,6 @@
         // refreshLiveDots populates dotCache; renderLayers consumes it. Fire
         // an explicit render now in case the timeline cache hasn't loaded yet.
         renderLayers();
-        autoBlinkRaccoon(document.getElementById('raccoonCard'));
         setInterval(async () => {
             await Promise.all([
                 isLive ? refreshLiveDots().then(renderLayers) : Promise.resolve(),

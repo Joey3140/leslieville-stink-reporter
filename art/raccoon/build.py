@@ -1072,8 +1072,9 @@ def pose(mood, t):
         set_tail(sway(6, 4))
     elif mood == 5:
         stride = wave(8)
-        bounce = abs(wave(8, 0.25))
-        root.location = (0.1, 0.05, 0.16 + 0.2 * bounce)
+        # Airborne at full stride, feet planted as the legs pass under the body.
+        bounce = abs(wave(8))
+        root.location = (0.1, 0.05, 0.17 + 0.2 * bounce)
         root.rotation_euler = (0, 0, rad(42))
         body.rotation_euler = (rad(20 + 3 * wave(16)), 0, 0)
         head.rotation_euler = (rad(-12), 0, rad(-20))

@@ -212,3 +212,4 @@ Copyright © 2026 Joey Drury. Required notice (per license): `Copyright (c) 2026
 ## Change notes
 
 - 2026-11-01: Switched the base map from CARTO to Esri's light gray canvas (`public/js/map.js`, CSP `img-src` in `server.js`). CARTO's free tiles had started overprinting "API KEY REQUIRED" across the map, hiding the streets. Esri needs no API key and requires the attribution shown on the map.
+- 2026-11-02: Replaced the animated raccoon with a 3D character rendered in Blender, because the old animation wasn't good enough (`art/raccoon/` holds the source, `public/raccoon/` the finished files). Renamed dashboard moods 3 and 4 to Strong and Severe so "Strong" means the same thing as on the report form; scoring is unchanged. Moved the About page raccoon out of an inline script the security policy was blocking, fixed hero, report icon, feed, map legend, attribution and timeline graphics on phones and desktop, and added share-preview tags.

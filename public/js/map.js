@@ -484,7 +484,7 @@
     // status is legible at a glance, and list the FSAs driving today's signal.
     // Card background + dot colors track the same heat ramp the map uses, so a
     // glance at the raccoon previews the map.
-    const MOOD_WORDS = { 1: 'All clear', 2: 'Faint', 3: 'Noticeable', 4: 'Strong', 5: 'Overwhelming' };
+    const MOOD_WORDS = { 1: 'All clear', 2: 'Faint', 3: 'Strong', 4: 'Severe', 5: 'Overwhelming' };
 
     // Per-FSA dot color is driven by that FSA's count, using the same buckets
     // colorFor() uses for the map grid. Keeps visual semantics consistent.

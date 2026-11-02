@@ -13,8 +13,8 @@ Nothing in this folder is served. The site only uses the finished files in
 |---|---|---|
 | 1 | All clear | Asleep beside the bin, holding a slice of pizza, Z's drifting up |
 | 2 | Faint | Awake and sniffing, ears twitching, a little vapour off the bin |
-| 3 | Noticeable | Squinting and fanning the air with one paw |
-| 4 | Strong | Eyes squeezed shut, paws on its nose, crying |
+| 3 | Strong | Squinting and fanning the air with one paw |
+| 4 | Severe | Eyes squeezed shut, paws on its nose, crying |
 | 5 | Overwhelming | Gas mask on, running from the tipped bin through green haze |
 
 Each mood is a four-second seamless loop at 24 fps. Scene colours match the

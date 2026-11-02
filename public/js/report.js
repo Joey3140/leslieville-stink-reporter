@@ -223,7 +223,8 @@
 
     function showSuccess(payload) {
         const fsa = fsaSelect.value || 'M4M';
-        const time = new Date().toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
+        // en-CA ends in "p.m." and both sentences below add their own full stop.
+        const time = new Date().toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' }).replace(/\.$/, '');
         const isClear = severity === 0;
         const sevForRaccoon = isClear ? 1 : Math.min(5, (severity || 2) + 1);
         const headline = isClear ? 'All-clear logged.' : 'Stench logged.';

@@ -55,3 +55,6 @@ project/tickets/
 
 # Secrets — auto-added by Harness
 .env.*
+art/raccoon/out/
+*.blend
+*.blend1

@@ -176,12 +176,12 @@ section { padding: 32px 48px; }
 .raccoon-card {
     background: var(--mood-bg, var(--tile));
     border-radius: 24px;
-    padding: 16px;
+    overflow: hidden;
     aspect-ratio: 1 / 1;
-    display: flex; align-items: center; justify-content: center;
     transition: background-color 600ms ease;
 }
-.raccoon-card svg { width: 100%; height: 100%; }
+.raccoon-card video, .raccoon-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.raccoon-img { display: block; width: 100%; height: 100%; object-fit: contain; }
 /* Mood-tinted card backgrounds. Scale matches the map heat ramp: green when the
    raccoon is napping → deep red when it's overwhelming. Set via [data-mood] on
    the shell so the card and stamp colors stay in sync. */
@@ -508,11 +508,21 @@ section { padding: 32px 48px; }
     position: relative;
     width: 100%; height: 56px;
     border-radius: 6px; overflow: hidden;
-    background: var(--ink-08);
+    background: rgba(27, 27, 27, 0.035);
+    box-shadow: inset 0 -1px 0 var(--ink-12);
     cursor: pointer;
     touch-action: none;        /* prevent scroll on drag */
     user-select: none;
 }
+.timeline-quiet {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-50);
+    pointer-events: none;
+}
+.timeline-quiet[hidden] { display: none; }
 .timeline-strip:focus-visible {
     outline: 2px solid var(--ink);
     outline-offset: 2px;
@@ -663,10 +673,10 @@ section { padding: 32px 48px; }
 }
 .feed-item:last-child { border-bottom: 0; }
 .feed-item-row {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
     margin-bottom: 6px;
 }
-.feed-item-meta { display: flex; gap: 10px; align-items: center; }
+.feed-item-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; min-width: 0; }
 .feed-fsa {
     font-family: var(--mono); font-size: 12px; font-weight: 600;
     color: var(--ink);
@@ -676,6 +686,7 @@ section { padding: 32px 48px; }
     white-space: nowrap;
 }
 .feed-time {
+    flex: none; white-space: nowrap; line-height: 20px;
     font-family: var(--mono); font-size: 11px;
     color: var(--ink-50);
 }
@@ -697,7 +708,7 @@ section { padding: 32px 48px; }
 
 /* Severity badge */
 .sev-badge {
-    display: inline-flex; align-items: center; gap: 6px;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
     padding: 2px 8px; border-radius: 999px;
     font-family: var(--sans); font-size: 11px; font-weight: 600;
     letter-spacing: 0.01em;
@@ -754,7 +765,7 @@ section { padding: 32px 48px; }
     background: rgba(127, 168, 143, 0.08);
 }
 .sev-btn-icon { display: flex; justify-content: center; margin-bottom: 6px; }
-.sev-btn-icon svg { width: 84px; height: 84px; }
+.sev-btn-icon img { width: 92px; height: 92px; }
 .sev-btn-label {
     font-family: var(--serif); font-size: 18px; font-weight: 500;
     color: var(--ink);
@@ -976,6 +987,7 @@ input[type="email"], input[type="text"] { padding: 14px 16px; font-size: 16px; }
     margin: 0 0 16px; max-width: 640px;
 }
 .prose a { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.prose a.btn { text-decoration: none; }
 
 .pull-quote {
     margin: 40px 0; padding: 36px 32px;
@@ -1053,7 +1065,7 @@ footer.foot {
     .severity-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
     .sev-btn { padding: 12px 6px; }
     .sev-btn[aria-pressed="true"] { padding: 11px 5px; }
-    .sev-btn-icon svg { width: 56px; height: 56px; }
+    .sev-btn-icon img { width: 76px; height: 76px; }
     .sev-btn-label { font-size: 15px; line-height: 1.15; }
     .sev-btn-desc { font-size: 11px; }
     footer.foot { padding: 20px; }
@@ -1098,6 +1110,8 @@ footer.foot {
 }
 @media (max-width: 520px) {
     .brand-mark { width: 26px; height: 26px; font-size: 11px; }
+    /* Sit above Leaflet's attribution line instead of underneath it. */
+    .legend { bottom: 26px; left: 10px; }
     .hero h1 { font-size: 32px; }
     /* Stack the map's section title and toggles vertically — at ~360px
        phone widths the title + 24h/7d/30d/all + WIND button overflow the
@@ -1125,7 +1139,7 @@ footer.foot {
     .severity-grid { gap: 6px; }
     .sev-btn { padding: 10px 4px; }
     .sev-btn[aria-pressed="true"] { padding: 9px 3px; }
-    .sev-btn-icon svg { width: 48px; height: 48px; }
+    .sev-btn-icon img { width: 64px; height: 64px; }
     /* Long single words ("Overwhelming") — let them shrink and wrap. */
     .sev-btn-label {
         font-size: 13px;

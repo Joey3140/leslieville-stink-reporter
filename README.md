@@ -136,7 +136,7 @@ The build script reprojects from EPSG:3347 (StatCan Lambert) to WGS84 lat/lng an
 | `GET` | `/api/reports/recent?limit=20` | Last N active reports, public-safe fields |
 | `GET` | `/api/reports/dots?window=24h\|7d` | Jittered lat/lng dots for opt-in reports |
 | `GET` | `/api/reports/timeline` | 30-day index for the timeline scrubber. Returns `{ createdAt, fsa, severity, odourType }` per report — **no lat/lng** by design (see Privacy claims). Rate-limited 60/hr/IP. |
-| `GET` | `/api/reports/stats` | `{ today, thisWeek, thisYear, uniqueReportersThisWeek }` |
+| `GET` | `/api/reports/stats` | `{ today, last24h, thisWeek, thisYear, uniqueReportersThisWeek }` |
 | `GET` | `/api/weather/current` | OWM proxy (10-min edge cache) |
 | `GET` | `/api/reports/meta` | Static enums (severity labels, odour types) |
 | `GET` | `/api/config` | Public config: Turnstile site key, kill-switch state |
@@ -213,3 +213,4 @@ Copyright © 2026 Joey Drury. Required notice (per license): `Copyright (c) 2026
 
 - 2026-11-01: Switched the base map from CARTO to Esri's light gray canvas (`public/js/map.js`, CSP `img-src` in `server.js`). CARTO's free tiles had started overprinting "API KEY REQUIRED" across the map, hiding the streets. Esri needs no API key and requires the attribution shown on the map.
 - 2026-11-02: Replaced the animated raccoon with a 3D character rendered in Blender, because the old animation wasn't good enough (`art/raccoon/` holds the source, `public/raccoon/` the finished files). Renamed dashboard moods 3 and 4 to Strong and Severe so the dashboard and report form use the same words. They still measure different things: the dashboard counts reports per UTC day, and the form records how bad one reporter says the smell is. Moved the About page raccoon out of an inline script the security policy was blocking, fixed hero, report icon, feed, map legend, attribution and timeline graphics on phones and desktop, and added share-preview tags.
+- 2026-11-02: The raccoon, headline and first stat now use a rolling 24-hour count (`last24h` in `/api/reports/stats`). They used to reset at midnight UTC, about 7 PM in Toronto, so the site said "All clear" hours after a report and the headline's "last 24 hours" wasn't true. The count comes from the existing seven-day query, so it needs no new index or extra reads. `today` stays in the API.

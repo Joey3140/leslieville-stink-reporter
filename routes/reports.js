@@ -22,9 +22,9 @@ function flagPii(text) {
     return PII_PATTERNS.map((re, i) => (re.test(text) ? ['email', 'phone', 'address'][i] : null)).filter(Boolean);
 }
 
-// UTC dayKey. Note: stats endpoints and the raccoon meter expose this as "today" —
-// for a Toronto resident, "today" rolls over at 7-8 PM local. Acceptable for v1
-// because daily counts are aggregations, not time-sensitive UX.
+// UTC dayKey. Note: the stats endpoint exposes this as "today" — for a Toronto resident,
+// "today" rolls over at 7-8 PM local. Acceptable for daily counts, which are aggregations.
+// The raccoon and headline use the rolling last24h count instead.
 function dayKey(date) {
     const y = date.getUTCFullYear();
     const m = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -492,6 +492,7 @@ router.get('/stats', asyncHandler(async (req, res) => {
     const now = new Date();
     const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const dayAgoMs = now.getTime() - 24 * 60 * 60 * 1000;
     const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
     try {
@@ -506,12 +507,18 @@ router.get('/stats', asyncHandler(async (req, res) => {
             // the report write so day-of values match.
             db.collection(COLLECTIONS.dailyCounts).where('date', '>=', sevenDaysAgoKey).get(),
         ]);
-        const reportersSnap = await db.collection(COLLECTIONS.reports)
+        const recentSnap = await db.collection(COLLECTIONS.reports)
             .where('status', '==', 'active')
             .where('createdAt', '>=', sevenDaysAgo)
-            .select('clientId')
+            .select('clientId', 'createdAt', 'severity')
             .get();
-        const uniqueReporters = new Set(reportersSnap.docs.map((d) => d.data().clientId)).size;
+        const recent = recentSnap.docs.map((d) => d.data());
+        const uniqueReporters = new Set(recent.map((d) => d.clientId)).size;
+        // Rolling window for the raccoon and headline, so they don't fall back to
+        // "All clear" when the UTC day rolls over. Read from the query above, so it
+        // needs no extra reads or index.
+        const lastDay = recent.filter((d) => (d.createdAt?.toDate?.() || new Date(d.createdAt)).getTime() >= dayAgoMs);
+        const clearCheckInsLast24h = lastDay.filter((d) => d.severity === 0).length;
 
         let clearCheckInsThisWeek = 0;
         let clearCheckInsToday = 0;
@@ -526,10 +533,12 @@ router.get('/stats', asyncHandler(async (req, res) => {
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=5, stale-while-revalidate=15');
         res.json({
             today: todaySnap.data().count,
+            last24h: lastDay.length,
             thisWeek: weekSnap.data().count,
             thisYear: yearSnap.data().count,
             uniqueReportersThisWeek: uniqueReporters,
             clearCheckInsToday,
+            clearCheckInsLast24h,
             clearCheckInsThisWeek,
             generatedAt: new Date().toISOString(),
         });

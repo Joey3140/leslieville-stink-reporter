@@ -539,26 +539,25 @@
     async function refreshStats() {
         try {
             const s = await getJson('/api/reports/stats');
-            document.getElementById('statToday').textContent = (s.today ?? 0).toLocaleString('en-CA');
+            document.getElementById('statToday').textContent = (s.last24h ?? 0).toLocaleString('en-CA');
             document.getElementById('statWeek').textContent = (s.thisWeek ?? 0).toLocaleString('en-CA');
             document.getElementById('statYear').textContent = (s.thisYear ?? 0).toLocaleString('en-CA');
             document.getElementById('statReporters').textContent = (s.uniqueReportersThisWeek ?? 0).toLocaleString('en-CA');
             const statClear = document.getElementById('statClear');
             if (statClear) statClear.textContent = (s.clearCheckInsThisWeek ?? 0).toLocaleString('en-CA');
 
-            // s.today counts ALL submissions including all-clear check-ins; the odour signal
-            // is today minus clearToday. Mood + headline use the positive count.
-            const today = s.today || 0;
-            const clearToday = s.clearCheckInsToday || 0;
-            const positiveToday = Math.max(0, today - clearToday);
+            // s.last24h counts ALL submissions including all-clear check-ins; the odour signal
+            // is that minus the check-ins. Mood + headline use the positive count.
+            const clear = s.clearCheckInsLast24h || 0;
+            const positive = Math.max(0, (s.last24h || 0) - clear);
             let mood;
-            if (positiveToday === 0) mood = 1;
-            else if (positiveToday <= 3) mood = 2;
-            else if (positiveToday <= 10) mood = 3;
-            else if (positiveToday <= 30) mood = 4;
+            if (positive === 0) mood = 1;
+            else if (positive <= 3) mood = 2;
+            else if (positive <= 10) mood = 3;
+            else if (positive <= 30) mood = 4;
             else mood = 5;
             renderRaccoon(document.getElementById('raccoonCard'), mood, { size: 'hero' });
-            updateHeadline(positiveToday, clearToday, mood);
+            updateHeadline(positive, clear, mood);
             updateMoodLabel(mood);
             renderLakeWave(document.getElementById('lakeWave'), mood);
 
@@ -574,16 +573,16 @@
         }
     }
 
-    function updateHeadline(positiveToday, clearToday, mood) {
+    function updateHeadline(positive, clear, mood) {
         // <em> elements are styled by the global Honest Ed's CSS rule
         // (yellow highlight pill, rotated). No inline overrides — let the CSS work.
         const h = document.getElementById('heroHeadline');
-        if (positiveToday === 0 && clearToday > 0) {
-            h.innerHTML = `The raccoon is napping. <em>All clear.</em> ${clearToday} check-in${clearToday === 1 ? '' : 's'} today.`;
-        } else if (positiveToday === 0) {
+        if (positive === 0 && clear > 0) {
+            h.innerHTML = `The raccoon is napping. <em>All clear.</em> ${clear} check-in${clear === 1 ? '' : 's'} in the last 24 hours.`;
+        } else if (positive === 0) {
             h.innerHTML = 'The raccoon is napping. <em>All clear.</em>';
         } else if (mood >= 4) {
-            h.innerHTML = `It's bad out there. <em>${positiveToday} report${positiveToday === 1 ? '' : 's'}</em> in the last 24 hours.`;
+            h.innerHTML = `It's bad out there. <em>${positive} report${positive === 1 ? '' : 's'}</em> in the last 24 hours.`;
         } else {
             h.innerHTML = "Smelled something? <em>Tell the City In Seconds.</em>";
         }

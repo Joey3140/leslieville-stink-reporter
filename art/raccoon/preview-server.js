@@ -31,10 +31,15 @@ function api(req, res, url) {
     const hit = fixtures[key] || Object.entries(fixtures).find(([k]) => k.split('?')[0] === url.pathname)?.[1];
     let body = hit ? hit.body : '{}';
     const mood = Number(/previewMood=(\d)/.exec(req.headers.cookie || '')?.[1]);
-    if (url.pathname === '/api/reports/stats' && mood >= 1 && mood <= 5) {
+    if (url.pathname === '/api/reports/stats') {
         const s = JSON.parse(body);
-        s.clearCheckInsToday = 0;
-        s.today = POSITIVE[mood];
+        // Saved copies can predate last24h.
+        s.last24h ??= s.today;
+        s.clearCheckInsLast24h ??= s.clearCheckInsToday;
+        if (mood >= 1 && mood <= 5) {
+            s.clearCheckInsLast24h = 0;
+            s.last24h = POSITIVE[mood];
+        }
         body = JSON.stringify(s);
     }
     res.writeHead(hit ? hit.status : 200, { 'content-type': 'application/json' });

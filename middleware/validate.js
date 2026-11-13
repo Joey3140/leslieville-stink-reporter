@@ -16,7 +16,8 @@ function formatIssue(issues, input) {
     const first = issues[0];
     const field = first.path.join('.');
     let error;
-    if (first.code === 'invalid_type' && field && valueAt(input, first.path) === undefined) {
+    // zod 4 reports a missing enum or literal as invalid_value, not invalid_type.
+    if ((first.code === 'invalid_type' || first.code === 'invalid_value') && field && valueAt(input, first.path) === undefined) {
         error = `${field} required`;
     } else if (field) {
         error = `${field}: ${first.message}`;

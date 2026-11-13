@@ -19,10 +19,10 @@ The `/about` page makes specific privacy promises. Each one is enforced in code 
 | "No raw IP — one-way HMAC hash with rotating secret" | [`utils/hash.js:hmacIp`](utils/hash.js) — HMAC-SHA256 with `IP_HASH_SECRET`, truncated to 32 chars. No reverse-mapping is possible without the secret. The secret can be rotated, invalidating all stored hashes. |
 | "No precise location unless you opt in" | [`routes/reports.js`](routes/reports.js) only stores `approxLat`/`approxLng` when (a) GPS is explicitly provided in the request body or (b) the reporter picks an allow-listed major intersection — in which case the server uses that intersection's public-corner coordinates from [`public/data/intersections.json`](public/data/intersections.json). No address-level resolution is possible from either path. The form's `shareLocation` checkbox is unchecked by default. |
 | "Optional precise location is jittered ~100m, deterministically per-day" | [`utils/hash.js:deterministicJitter`](utils/hash.js) — HMAC-derived offset, same per `(ipHash, dayKey)` so volume can't reveal an address. Applies equally to GPS-derived and intersection-derived coords. The jitter is reseeded daily; the **timeline endpoint deliberately omits coords** (only `/dots`, capped at 7 days, exposes them) so an attacker can't centroid 30 days of jitter samples back to a real address. |
-| "Reports auto-deleted after 30 days" | Firestore TTL on `reports.expiresAt` set in console (see [TTL section](#ttl-policies-required-for-privacy)). `expiresAt` is computed at write-time in [`routes/reports.js`](routes/reports.js). |
+| "Reports are kept, with no set deletion date" | No TTL policy on `reports` (Joey, 2026-11-13: the yearly totals in `/api/reports/stats` count raw reports). `expiresAt` is still written at write time in [`routes/reports.js`](routes/reports.js), so a policy can be switched on later; the About and report pages must change with it. See [TTL section](#ttl-policies). |
 | "Description is scanned for PII before going public" | [`routes/reports.js:flagPii`](routes/reports.js) — regex match for emails / phones / addresses. Hits route the report to `pending-review` status; `/api/reports/recent` only returns `status: 'active'`. |
 | "Severity 0 ('all clear') doesn't pollute the heatmap" | [`routes/reports.js`](routes/reports.js) `/heatmap` subtracts `bySeverity['0']` from each FSA's count; [`routes/alerts.js`](routes/alerts.js) filters `severity > 0` before averaging. |
-| "10 reports/hour/IP rate limit" | [`middleware/rate-limit.js`](middleware/rate-limit.js) — Firestore-backed sliding window keyed by HMAC of IP. |
+| "5 reports/hour/IP rate limit" | [`middleware/rate-limit.js`](middleware/rate-limit.js) — Firestore-backed sliding window keyed by HMAC of IP. |
 | "Same browser submitting twice in 30 min is silently de-duplicated" | [`routes/reports.js`](routes/reports.js) — composite query on `(clientId, ipHash)` against the last 30 min before any write. |
 | "Cron endpoints are not world-callable" | [`middleware/cron-auth.js`](middleware/cron-auth.js) — Bearer-token check against `CRON_SECRET`. Returns 401 + logs an HMAC of the source IP (never the raw IP) on rejection. |
 
@@ -102,16 +102,17 @@ Firestore will prompt you to create these the first time each query runs. Click 
 | `reports` | `fsa` Asc · `status` Asc · `createdAt` Asc (alert cron; missing until 2026-11-13, so the first working cron run got a 500) |
 | `daily-counts` | `date` Asc |
 
-### TTL policies (REQUIRED for privacy)
+### TTL policies
 
-Privacy depends on TTL — without these, IP hashes and reports persist forever despite README claims:
+The site's privacy text has to match these. Until 2026-11-13 none existed, so the About page's "auto-deleted after 30 days" was never true; Joey chose to keep the reports and change the wording instead.
 
-| Collection | Field | Effect |
-|---|---|---|
-| `reports` | `expiresAt` | Auto-deletes the report (and its ipHash/userAgent/description) after 30 days |
-| `rate-limits` | `expiresAt` | Auto-deletes spent rate-limit buckets |
+| Collection | Field | Policy | Effect |
+|---|---|---|---|
+| `reports` | `expiresAt` | **None, on purpose** (2026-11-13) | Reports are kept: the yearly totals count them. Switching one on deletes every report older than 30 days and breaks those totals |
+| `rate-limits` | `expiresAt` | On (2026-11-13) | Deletes a spent bucket about a day after its 1-hour window ends. The daily prune cron is the backstop (500 a run) |
+| `reports-anon` | `expiresAt` | **None yet** | The About page says these rows are kept up to 1 year. The first one passes its `expiresAt` on 2027-05-07: add the policy (or change the wording) before then |
 
-In the Firestore console: **Firestore → TTL → Add policy** for each of the above. Configure once per project.
+Add or check one with `gcloud firestore fields ttls list --database=leslieville-stink-db --project=leslieville-stink-reporter`.
 
 ## FSA boundary data
 
@@ -182,7 +183,7 @@ Verify after deploy: `curl https://www.leslievillestench.com/api/cron/alert-chec
 ## Privacy
 
 - No login. No name. Email optional (alerts only).
-- IPs are HMAC-hashed with a server secret (never stored raw); rate-limit docs auto-expire after 30 days.
+- IPs are HMAC-hashed with a server secret (never stored raw); rate-limit docs are deleted about a day after their 1-hour window (TTL policy, with the daily prune cron as backstop).
 - Precise location is opt-in, jittered ~100m before storage and display.
 - Description field is capped at 280 chars and scanned for PII (email/phone/address). Flagged reports are held in `pending-review` and only shown after manual approval via the Firestore console.
 - Aggregated daily counts per FSA are kept indefinitely as a public record.
@@ -216,3 +217,4 @@ Copyright © 2026 Joey Drury. Required notice (per license): `Copyright (c) 2026
 - 2026-11-02: The raccoon, headline and first stat now use a rolling 24-hour count (`last24h` in `/api/reports/stats`). They used to reset at midnight UTC, about 7 PM in Toronto, so the site said "All clear" hours after a report and the headline's "last 24 hours" wasn't true. The count comes from the existing seven-day query, so it needs no new index or extra reads. `today` stays in the API.
 - 2026-11-02: Fixed the double full stop after the time on the report confirmation ("2:51 p.m..").
 - 2026-11-13: The two cron routes now accept GET. Vercel Cron calls with GET and the routes were POST-only, so no scheduled alert check or prune has ever run (request logs on 11-13: every cron call was `GET /api/cron/alert-check` → 404). POST still works for manual runs, and `cronAuth` guards both. An alert run that sends nothing (Resend refused every message) now answers 502 and leaves the area out of its 6-hour cooldown, so the next run retries instead of dropping the alert. `npm test` runs `test/cron-routes.test.js`. The alert query's composite index (`reports`: fsa, status, createdAt) had never been created, so the first authorised run returned 500; it was created the same day (`gcloud firestore indexes composite create --database=leslieville-stink-db ...`) and the route now answers 200.
+- 2026-11-13: The privacy text now matches what is stored. No Firestore TTL policy had ever been set, so 156 of 170 reports were past their 30-day `expiresAt` and still kept, with their IP hash and browser ID, while the About and report pages promised deletion after 30 days. Joey chose to keep the reports (the yearly totals count them) and fix the wording, and to delete spent rate-limit records: the `rate-limits.expiresAt` TTL policy is on (1,056 of 1,110 were over a week past expiry). Also corrected: the IP hash secret doesn't rotate, and the hash also catches duplicate reports, not only rate limiting. See [TTL policies](#ttl-policies).

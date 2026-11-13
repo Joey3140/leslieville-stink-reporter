@@ -138,8 +138,9 @@ router.post('/',
             }
         }
 
-        // expiresAt drives Firestore TTL. Set TTL policy on `reports.expiresAt` in console.
-        // After 30d the entire report is auto-deleted (drops ipHash, userAgent, description).
+        // No TTL policy on reports.expiresAt, on purpose (Joey 2026-11-13): the yearly totals
+        // count raw reports. It's still written so a policy can be switched on later; the
+        // About and report pages promise no deletion date, so change them with it.
         const expiresAt = new Date(now.getTime() + REPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
         // We deliberately do NOT store userAgent — it's never read by any endpoint

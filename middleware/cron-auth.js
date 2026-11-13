@@ -15,9 +15,9 @@ function safeEqualStr(a, b) {
     return crypto.timingSafeEqual(ab, bb);
 }
 
-// Vercel cron hits the path with no Bearer by default. We require explicit auth so the
-// endpoint isn't world-callable. Configure CRON_SECRET in env, then in Vercel project
-// settings add it to the cron's HTTP request headers (Vercel Cron > Edit > Headers).
+// Vercel Cron sends `Authorization: Bearer $CRON_SECRET` on every run (a GET) once
+// CRON_SECRET is set as a project env var. Anything without that token is refused,
+// so the endpoints aren't world-callable.
 function cronAuth(req, res, next) {
     const expected = process.env.CRON_SECRET;
     if (!expected) {

@@ -9,6 +9,7 @@
     "scripts": {
         "start": "node server.js",
         "dev": "NODE_ENV=development node server.js",
+        "test": "node --test test/*.test.js",
         "build:fsa": "node scripts/build-fsa-geojson.js"
     },
     "keywords": [

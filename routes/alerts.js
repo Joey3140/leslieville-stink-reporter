@@ -21,7 +21,9 @@ function severityLabel(avg) {
     return SEV_LABEL[Math.max(1, Math.min(5, rounded))] || `${rounded}`;
 }
 
-router.post('/alert-check', cronAuth, asyncHandler(async (req, res) => {
+// Vercel Cron calls each path with GET (and `Authorization: Bearer $CRON_SECRET`),
+// so both paths answer GET. POST stays for manual runs. cronAuth guards both.
+const alertCheck = asyncHandler(async (req, res) => {
     const db = requireDb();
     const baseUrl = getBaseUrl(req);
     const now = new Date();
@@ -138,7 +140,17 @@ router.post('/alert-check', cronAuth, asyncHandler(async (req, res) => {
         return res.json({ ok: true, checked: watchedFsas.size, triggered: triggered.length, sent: 0 });
     }
 
-    await sendBatch(messages);
+    const { sent, failed } = await sendBatch(messages);
+
+    // Nothing went out (Resend refused every chunk, or no RESEND_API_KEY): don't
+    // start the cooldown or bump the counter, so the next run tries again
+    // instead of silently dropping this alert for COOLDOWN_HOURS.
+    if (sent === 0) {
+        log.error({ triggered: triggered.length, queued: messages.length, failed }, 'no alert emails sent — cooldown not started');
+        return res.status(failed > 0 ? 502 : 200).json({
+            ok: failed === 0, checked: watchedFsas.size, triggered: triggered.length, sent: 0, failed,
+        });
+    }
 
     // Mark cooldown for each triggered FSA.
     await Promise.all(triggered.map((t) => t.stateRef.set({
@@ -149,13 +161,13 @@ router.post('/alert-check', cronAuth, asyncHandler(async (req, res) => {
     }, { merge: true })));
 
     // Bump daily counter.
-    await capRef.set({ sentToday: FieldValue.increment(messages.length), updatedAt: now }, { merge: true });
+    await capRef.set({ sentToday: FieldValue.increment(sent), updatedAt: now }, { merge: true });
 
-    log.info({ triggered: triggered.length, sent: messages.length, sentToday: sentToday + messages.length }, 'alerts dispatched');
-    res.json({ ok: true, checked: watchedFsas.size, triggered: triggered.length, sent: messages.length });
-}));
+    log.info({ triggered: triggered.length, sent, failed, sentToday: sentToday + sent }, 'alerts dispatched');
+    res.json({ ok: true, checked: watchedFsas.size, triggered: triggered.length, sent, failed });
+});
 
-router.post('/prune-rate-limits', cronAuth, asyncHandler(async (req, res) => {
+const pruneRateLimits = asyncHandler(async (req, res) => {
     const db = requireDb();
     const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);   // 7-day grace beyond TTL
     const snap = await db.collection(COLLECTIONS.rateLimits).where('expiresAt', '<', cutoff).limit(500).get();
@@ -165,6 +177,9 @@ router.post('/prune-rate-limits', cronAuth, asyncHandler(async (req, res) => {
     await batch.commit();
     log.info({ deleted: snap.size }, 'rate-limits pruned');
     res.json({ ok: true, deleted: snap.size });
-}));
+});
+
+router.route('/alert-check').get(cronAuth, alertCheck).post(cronAuth, alertCheck);
+router.route('/prune-rate-limits').get(cronAuth, pruneRateLimits).post(cronAuth, pruneRateLimits);
 
 module.exports = router;

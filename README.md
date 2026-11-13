@@ -148,8 +148,8 @@ Phase 3 (alerts) adds:
 | `POST` | `/api/subscribers` | Subscribe (sends confirmation email) |
 | `GET` | `/api/subscribers/confirm?token=…` | Confirm subscription |
 | `POST/GET` | `/api/subscribers/unsubscribe` | One-click unsubscribe |
-| `POST` | `/api/cron/alert-check` | Cron — every 5 min |
-| `POST` | `/api/cron/prune-rate-limits` | Cron — daily |
+| `GET/POST` | `/api/cron/alert-check` | Cron — every 5 min (Vercel Cron calls with GET) |
+| `GET/POST` | `/api/cron/prune-rate-limits` | Cron — daily (Vercel Cron calls with GET) |
 
 ## Deploy to Vercel
 
@@ -177,7 +177,7 @@ Vercel Cron automatically attaches `Authorization: Bearer ${CRON_SECRET}` to eve
 - Vercel's scheduler hits it with the right token and proceeds.
 - If you ever rename `CRON_SECRET`, also update `middleware/cron-auth.js`.
 
-Verify after deploy: `curl -X POST https://leslieville-stink-reporter.vercel.app/api/cron/alert-check` should return 401.
+Verify after deploy: `curl https://www.leslievillestench.com/api/cron/alert-check` should return 401. Vercel Cron calls with GET, so the cron routes must accept GET; `npm test` covers both methods and the auth check.
 
 ## Privacy
 
@@ -215,3 +215,4 @@ Copyright © 2026 Joey Drury. Required notice (per license): `Copyright (c) 2026
 - 2026-11-02: Replaced the animated raccoon with a 3D character rendered in Blender, because the old animation wasn't good enough (`art/raccoon/` holds the source, `public/raccoon/` the finished files). Renamed dashboard moods 3 and 4 to Strong and Severe so the dashboard and report form use the same words. They still measure different things: the dashboard counts reports per UTC day, and the form records how bad one reporter says the smell is. Moved the About page raccoon out of an inline script the security policy was blocking, fixed hero, report icon, feed, map legend, attribution and timeline graphics on phones and desktop, and added share-preview tags.
 - 2026-11-02: The raccoon, headline and first stat now use a rolling 24-hour count (`last24h` in `/api/reports/stats`). They used to reset at midnight UTC, about 7 PM in Toronto, so the site said "All clear" hours after a report and the headline's "last 24 hours" wasn't true. The count comes from the existing seven-day query, so it needs no new index or extra reads. `today` stays in the API.
 - 2026-11-02: Fixed the double full stop after the time on the report confirmation ("2:51 p.m..").
+- 2026-11-13: The two cron routes now accept GET. Vercel Cron calls with GET and the routes were POST-only, so no scheduled alert check or prune has ever run (request logs on 11-13: every cron call was `GET /api/cron/alert-check` → 404). POST still works for manual runs, and `cronAuth` guards both. An alert run that sends nothing (Resend refused every message) now answers 502 and leaves the area out of its 6-hour cooldown, so the next run retries instead of dropping the alert. `npm test` runs `test/cron-routes.test.js`.

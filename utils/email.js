@@ -82,7 +82,7 @@ async function sendBatch(messages) {
     const client = getClient();
     if (!client) {
         log.info({ count: messages.length }, 'batch email send skipped (no RESEND_API_KEY)');
-        return { skipped: true };
+        return { skipped: true, sent: 0, failed: 0, results: [] };
     }
     // Resend's batch endpoint accepts up to 100 per call.
     const chunks = [];
@@ -107,7 +107,7 @@ async function sendBatch(messages) {
         }
     }
     log.info({ totalSent: messages.length - failed, failed }, 'batch email run complete');
-    return results;
+    return { sent: messages.length - failed, failed, results };
 }
 
 function resendError(error) {

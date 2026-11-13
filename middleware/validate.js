@@ -1,11 +1,22 @@
 const { z } = require('zod');
 const { ALLOWED_FSAS, isAllowedIntersection } = require('../utils/fsa');
 
-function formatIssue(issues) {
+// zod 4 issues no longer say what was received, so a missing field is found by
+// looking the issue's path up in the input.
+function valueAt(input, path) {
+    let value = input;
+    for (const key of path) {
+        if (value === null || typeof value !== 'object') return undefined;
+        value = value[key];
+    }
+    return value;
+}
+
+function formatIssue(issues, input) {
     const first = issues[0];
     const field = first.path.join('.');
     let error;
-    if (first.code === 'invalid_type' && first.received === 'undefined' && field) {
+    if (first.code === 'invalid_type' && field && valueAt(input, first.path) === undefined) {
         error = `${field} required`;
     } else if (field) {
         error = `${field}: ${first.message}`;
@@ -19,7 +30,7 @@ function validate(schema) {
     return (req, res, next) => {
         const result = schema.safeParse(req.body);
         if (!result.success) {
-            const error = formatIssue(result.error.issues);
+            const error = formatIssue(result.error.issues, req.body);
             return res.status(400).json({ error, details: result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
         }
         req.validated = result.data;
@@ -31,7 +42,7 @@ function validateQuery(schema) {
     return (req, res, next) => {
         const result = schema.safeParse(req.query);
         if (!result.success) {
-            const error = formatIssue(result.error.issues);
+            const error = formatIssue(result.error.issues, req.query);
             return res.status(400).json({ error, details: result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
         }
         req.validatedQuery = result.data;

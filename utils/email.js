@@ -67,6 +67,9 @@ async function send({ to, subject, template, data, replyTo }) {
             html,
             replyTo: replyTo || undefined,
         });
+        // Resend reports API failures (bad key, unverified domain, rate limit) as
+        // { error } instead of throwing, so treat that like a throw.
+        if (result?.error) throw resendError(result.error);
         log.info({ toHash: toHash(to), subject, template, id: result?.data?.id }, 'email sent');
         return result;
     } catch (err) {
@@ -85,6 +88,7 @@ async function sendBatch(messages) {
     const chunks = [];
     for (let i = 0; i < messages.length; i += 100) chunks.push(messages.slice(i, i + 100));
     const results = [];
+    let failed = 0;
     for (const chunk of chunks) {
         const payload = chunk.map((m) => ({
             from: FROM,
@@ -94,14 +98,22 @@ async function sendBatch(messages) {
         }));
         try {
             const r = await client.batch.send(payload);
+            if (r?.error) throw resendError(r.error);
             results.push(r);
         } catch (err) {
+            failed += chunk.length;
             log.error({ err, chunkSize: chunk.length }, 'batch send chunk failed');
             // Continue with remaining chunks rather than aborting the entire alert run.
         }
     }
-    log.info({ totalSent: messages.length }, 'batch email run complete');
+    log.info({ totalSent: messages.length - failed, failed }, 'batch email run complete');
     return results;
+}
+
+function resendError(error) {
+    const err = new Error(`Resend ${error.name || 'error'}: ${error.message || 'send failed'}`);
+    err.resend = error;
+    return err;
 }
 
 module.exports = { send, sendBatch };

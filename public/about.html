@@ -57,7 +57,7 @@
         <h3 style="font-family:var(--serif); font-size:18px; font-weight:600; margin:24px 0 6px">What we never collect</h3>
         <ul>
             <li>No name, no account, no login.</li>
-            <li>No analytics or third-party trackers (no Google Analytics, no Meta pixel, no Mixpanel — none of it).</li>
+            <li>No third-party trackers (no Google Analytics, no Meta pixel, no Mixpanel — none of it). Page visits are counted with Vercel Web Analytics, served from this site, with no cookies.</li>
             <li>No raw IP address. We compute a one-way HMAC hash with a server-side secret and store only the hash, used for rate-limiting and to catch duplicate reports. The original IP can't be recovered from it.</li>
             <li>No precise location unless you explicitly opt in on the report form.</li>
         </ul>
@@ -73,7 +73,7 @@
         <h3 style="font-family:var(--serif); font-size:18px; font-weight:600; margin:24px 0 6px">Who sees the data</h3>
         <ul>
             <li><strong>Everyone.</strong> All counts and reports are visible on the public dashboard the moment they're submitted. There is no private dataset; we don't sell or share data; we don't auto-email the councillor's office or anyone else.</li>
-            <li>Coun. Paula Fletcher's office (Ward 14, Toronto–Danforth) and any other interested party can read the live counts directly from this site at any time.</li>
+            <li>The <a href="https://www.toronto.ca/city-government/council/members-of-council/councillor-ward-14/">Ward 14 (Toronto–Danforth) councillor's office</a> and any other interested party can read the live counts directly from this site at any time.</li>
             <li>Description text is scanned for personal info (email/phone/address patterns) before going public. If a description is flagged, the whole report is held in a moderation queue until manually cleared.</li>
         </ul>
 

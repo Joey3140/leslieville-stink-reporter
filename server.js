@@ -7,6 +7,7 @@ const admin = require('firebase-admin');
 require('dotenv').config();
 
 const { createChild } = require('./utils/logger');
+const { previewGuard } = require('./middleware/preview-guard');
 const log = createChild('server');
 
 process.on('unhandledRejection', (reason) => {
@@ -131,7 +132,15 @@ app.use(helmet({
         },
     },
     crossOriginEmbedderPolicy: false,
+    // These used to sit in vercel.json's `headers`, which Vercel never applied (the legacy
+    // `routes` array takes precedence), so production sent SAMEORIGIN and no Permissions-Policy.
+    frameguard: { action: 'deny' },
+    // Referrer stays helmet's no-referrer (stricter than the old vercel.json value).
 }));
+app.use((req, res, next) => {
+    res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(), microphone=()');
+    next();
+});
 
 // In prod, only allow XHR from our own deploy origin. The site has no auth
 // and `credentials: false`, so this is mostly cosmetic — but it stops a
@@ -186,14 +195,18 @@ app.use('/api/weather', weatherRoutes);
 // around — exactly the kind of thing a hostile reader screenshots to argue
 // the site is unfinished. Local/preview deploys still see them.
 if (process.env.NODE_ENV === 'production') {
-    app.get(['/preview', '/preview-nav', '/preview-nav.html', '/preview/*'], (req, res) => {
-        res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
-    });
+    app.use(previewGuard(path.join(__dirname, 'public', 'index.html')));
 }
 
 app.use(express.static(path.join(__dirname, 'public'), {
     extensions: ['html'],
     maxAge: '1h',
+    // public/data/ (FSA boundary, intersections) changes about once a year.
+    setHeaders: (res, filePath) => {
+        if (filePath.includes(`${path.sep}public${path.sep}data${path.sep}`)) {
+            res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+        }
+    },
 }));
 
 const sendPage = (file) => (req, res) => res.sendFile(path.join(__dirname, 'public', file));

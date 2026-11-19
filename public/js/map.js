@@ -19,20 +19,17 @@
     });
     map.fitBounds(MAP_BOUNDS, { padding: [10, 10] });
 
-    // Esri's light gray canvas is the closest match for the design's flat off-white aesthetic.
-    // It needs no API key but does require the attribution. Detail stops at z16, so Leaflet
-    // scales z17 up. CARTO's free tiles overprint "API KEY REQUIRED" on this site, so don't
-    // switch back without checking.
-    const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_';
-    const TILE_OPTS = { maxZoom: 17, maxNativeZoom: 16 };
-    L.tileLayer(ESRI + 'Base/MapServer/tile/{z}/{y}/{x}', {
-        ...TILE_OPTS,
-        // The long credit wraps to two lines on phones and covers the legend.
-        attribution: window.innerWidth < 600
-            ? 'Tiles &copy; Esri, &copy; OpenStreetMap'
-            : 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+    // CARTO Positron (light grey, the flat off-white look of the design), with this site's own
+    // key since 2026-11-19. It's a browser key (in every tile URL anyway), locked by CARTO to
+    // leslievillestench.com + *.leslievillestench.com, so localhost gets 403 tiles by design.
+    // Canonical copy: Doppler leslieville-stink-reporter/prd CARTO_BASEMAPS_KEY. Keyless CARTO tiles
+    // say "API KEY REQUIRED"; Esri (11-01..11-19) needs an ArcGIS subscription under its terms.
+    // CARTO requires the OpenStreetMap + CARTO credit.
+    const CARTO_KEY = 'cb1_5cfj_2_620d36717d4e4c0b4706b571';
+    L.tileLayer('https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, {
+        maxZoom: 17,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(map);
-    L.tileLayer(ESRI + 'Reference/MapServer/tile/{z}/{y}/{x}', TILE_OPTS).addTo(map);
 
     // Heat ramp matches the Stink Tracker design system.
     const HEAT_RAMP = ['#F4EFE3', '#EFE3C2', '#E5D08A', '#E5A756', '#C97A35', '#B8552A', '#8E331C', '#6B1F12'];

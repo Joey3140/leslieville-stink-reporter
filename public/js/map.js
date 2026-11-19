@@ -28,6 +28,9 @@
     const CARTO_KEY = 'cb1_5cfj_2_620d36717d4e4c0b4706b571';
     L.tileLayer('https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, {
         maxZoom: 17,
+        // The site sends Referrer-Policy: no-referrer, and CARTO checks the key against the
+        // Referer, so tiles alone send the bare origin (no path). Without this every tile is 403.
+        referrerPolicy: 'strict-origin',
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(map);
 
